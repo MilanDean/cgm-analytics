@@ -87,7 +87,7 @@ export default function Home() {
           <a
             className="pointer-events-none flex place-items-center gap-3 p-8 lg:pointer-events-auto lg:p-0"
             href=""
-            target="_blank"
+            target=""
             rel="noopener noreferrer"
           >
             By:{' '}
