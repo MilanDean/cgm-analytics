@@ -3,7 +3,7 @@ import Image from 'next/image'
 export default function Upload() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      
+
       <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
         <a
           href="/"
@@ -72,6 +72,29 @@ export default function Upload() {
             Placeholder here
           </p>
         </a>
+      </div>
+
+      <div className="flex flex-col items-center justify-center">
+        <form className="w-full max-w-lg p-8 rounded-lg shadow-lg bg-transparent border-2 border-black">
+          <h2 className="text-black text-2xl font-semibold mb-6">Upload File</h2>
+          <div className="mb-4">
+            <label htmlFor="fileInput" className="text-black font-bold">
+              Select a file to upload:
+            </label>
+            <input
+              type="file"
+              id="fileInput"
+              className="w-full border border-gray-300 p-2 rounded text-black bg-transparent"
+            />
+          </div>
+          {/* Add additional form fields here if needed */}
+          <button
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Upload
+          </button>
+        </form>
       </div>
 
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
