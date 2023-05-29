@@ -3,7 +3,7 @@ import TopNav from '../components/TopNav'
 
 export default function Upload() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">
 
       <TopNav />
       <div className="flex flex-col items-center justify-center">
