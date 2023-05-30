@@ -8,8 +8,8 @@ export default function Upload() {
       <TopNav />
       <div className="flex flex-col items-center justify-center">
         <form className="w-full max-w-lg p-8 rounded-lg shadow-lg bg-transparent border-2 border-black">
-          <h2 className="text-black text-2xl font-semibold mb-6">Upload File</h2>
-          <div className="mb-4">
+
+          <div className="p-6 mb-4">
             <label htmlFor="fileInput" className="text-black font-bold">
               Select a file to upload:
             </label>
@@ -19,13 +19,16 @@ export default function Upload() {
               className="w-full border border-gray-300 p-2 rounded text-black bg-transparent"
             />
           </div>
-          {/* Add additional form fields here if needed */}
-          <button
-            type="submit"
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Upload
-          </button>
+
+          <div className='flex items-center justify-center py-3'>
+            <button
+              type="submit"
+              className="bg-black text-white px-4 py-2 scale-125 rounded hover:bg-blue-600"
+            >
+              Upload
+            </button>
+          </div>
+
         </form>
       </div>
 

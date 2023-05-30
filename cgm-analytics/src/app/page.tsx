@@ -1,7 +1,10 @@
 import Image from 'next/image'
 import TopNav from './components/TopNav'
+// import { redirect } from 'next/navigation';
 
 export default function Home() {
+
+  // redirect("/upload");
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">
 
