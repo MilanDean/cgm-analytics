@@ -1,11 +1,13 @@
 'use client';
 import { ChangeEvent, useState } from 'react';
+import { useRouter } from "next/navigation";
 import axios from 'axios';
 import Image from 'next/image';
 import TopNav from '../components/TopNav';
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,11 +27,17 @@ export default function Upload() {
         },
       });
 
+      if (response.status === 200) {
+        // Redirect to the analysis page to load the data we've just uploaded
+        console.log('Successfully sent payload to FastAPI.')
+        router.push('/analysis')
+      }
+
       console.log(response.data);
     } catch (error) {
       console.error(error);
     }
-  };
+  }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -40,7 +48,7 @@ export default function Upload() {
     } else {
       setFile(null);
     }
-  };
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">

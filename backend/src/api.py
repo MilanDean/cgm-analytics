@@ -14,6 +14,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Not optimal, in-memory data storage solution for datasets. Should work for MVP,
+# but we dont want to rely on this long term
+data_store = {}
 
 @app.get("/")
 async def root():
@@ -25,6 +28,18 @@ async def root():
 async def process_csv_file(file: UploadFile):
     try:
         df = pd.read_csv(file.file)
-        return df.to_dict(orient="records")
+        records = df.to_dict(orient="records")
+        data_store['analysis_data'] = JSONResponse(content=records)
+
+        return JSONResponse(content=records)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analysis")
+async def get_analysis_data():
+    if "analysis_data" not in data_store:
+        raise HTTPException(status_code=404, detail="Analysis data not available")
+    
+    print(data_store['analysis_data'])
+    return data_store["analysis_data"]
