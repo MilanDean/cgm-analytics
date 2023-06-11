@@ -5,12 +5,10 @@ import seaborn as sns
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from scipy import stats
-import warnings
-warnings.filterwarnings("ignore")
 
 def time_feature(data):
     majority_hour = data.timestamp.dt.hour.value_counts().reset_index().sort_values('timestamp',
-                                                                                    ascending=False)['timestamp'].iloc[0]
+                                                                                    ascending=False)['index'].iloc[0]
     if majority_hour < 4:
         time_feat = 0
     elif (majority_hour >= 4) & (majority_hour < 8):
@@ -98,23 +96,23 @@ def derive_cgm_features(data, plot_flag=False):
            #'interdaycv': cgmq.interdaycv(data),
            # 'intradaysd': cgmq.intradaysd(data) # Does Not Work
            # 'intradaycv': cgmq.intradaycv(data) # Does Not Work
-           'TOR': TOR(data, sd=1, sr=1)/ len(data), # change to 1? # sr is the sampling rate inverse in minutes of the CGM
-           'TIR': TIR(data, sd=1, sr=1)/ len(data), # changing to a %
+           #'TOR': cgmq.TOR(data, sd=1, sr=1)/ len(data), # change to 1? # sr is the sampling rate inverse in minutes of the CGM
+           #'TIR': cgmq.TIR(data, sd=1, sr=1)/ len(data), # changing to a %
            #'POR': cgmq.POR(data, sd=1, sr=1), # change to 1?
-           'MGE': MGE(data, sd=1), # Does Not Work
-           'MGN': MGN(data, sd=1), # Does Not Work
-           # 'MAGE': MAGE(data, std=1), # Does Not Work, - same as CV
-           'J_index': J_index(data), # removed 12/12/22
-           'LBGI': LBGI(data),
-           'HBGI': HBGI(data),
-           # 'ADRR': cgmq.ADRR(data),
+           # 'MGE': cgmq.MGE(data, sd=1), # Does Not Work
+           # 'MGN': cgmq.MGN(data, sd=1), # Does Not Work
+           # 'MAGE': cgmq.MAGE(data, std=1) # Does Not Work, - same as CV
+           # 'J_index': cgmq.J_index(data), # removed 12/12/22
+           #'LBGI': cgmq.LBGI(data),
+           #'HBGI': cgmq.HBGI(data),
+           #'ADRR': cgmq.ADRR(data),
            # 'MODD': cgmq.MODD(data), # Does Not Work
            # 'CONGA24': cgmq.CONGA24(data) # Does Not Work
-           'GMI': GMI(data),
-           'eA1c': eA1c(data), # Removed 12/12/22
+           #'GMI': cgmq.GMI(data),
+           # 'eA1c': cgmq.eA1c(data), # Removed 12/12/22
            # 'std': np.std(data.Glucose), # repeated above
            'entropy': stats.entropy(pk=data['Glucose'], base=2),
-           'time_period': time_feature(data)
+           #'time_period': time_feature(data)
            }
     obj_df = pd.DataFrame([obj])
     #combined_df = pd.concat([summary_features, obj_df, firstOrdDeriv, cgm_ranges, dynamicRisk_df], axis = 1)
@@ -127,30 +125,6 @@ def derive_cgm_features(data, plot_flag=False):
     #     cgmq.plotglucosesmooth(data, size=15)
 
     return combined_df
-
-def eA1c(df):
-    """
-        Computes and returns the American Diabetes Association estimated HbA1c
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-        Returns:
-            eA1c (float): an estimate of HbA1c from the American Diabetes Association
-
-    """
-    eA1c = (46.7 + np.mean(df['Glucose'])) / 28.7
-    return
-
-def GMI(df):
-    """
-        Computes and returns the glucose management index
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-        Returns:
-            GMI (float): glucose management index (an estimate of HbA1c)
-
-    """
-    GMI = 3.31 + (0.02392 * np.mean(df['Glucose']))
-    return GMI
 
 def dynamic_risk(glucose, d=3.5, offset=0.75, aalpha=5):
     '''
@@ -212,162 +186,64 @@ def dynamic_risk(glucose, d=3.5, offset=0.75, aalpha=5):
 
     return DR
 
-
-def HBGI(df):
-    """
-        Computes and returns the high blood glucose index
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-        Returns:
-            HBGI (float): High blood glucose index
-
-    """
-    f = ((np.log(df['Glucose']) ** 1.084) - 5.381)
-    rh = []
-    for i in f:
-        if (i > 0):
-            rh.append(22.77 * (i ** 2))
-        else:
-            rh.append(0)
-
-    HBGI = np.mean(rh)
-    return HBGI
-
-def LBGI(df):
-    """
-        Computes and returns the low blood glucose index
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-        Returns:
-            LBGI (float): Low blood glucose index
-
-    """
-    f = ((np.log(df['Glucose']) ** 1.084) - 5.381)
-    rl = []
-    for i in f:
-        if (i <= 0):
-            rl.append(22.77 * (i ** 2))
-        else:
-            rl.append(0)
-
-    LBGI = np.mean(rl)
-    return LBGI
-
-def J_index(df):
-    """
-        Computes and returns the J-index
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-        Returns:
-            J (float): J-index of glucose
-
-    """
-    J = 0.001 * ((np.mean(df['Glucose']) + np.std(df['Glucose'])) ** 2)
-    return J
-
-def TIR(df, sd=1, sr=5):
-    """
-        Computes and returns the time in range
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-            sd (integer): standard deviation for computing range (default=1)
-            sr (integer): sampling rate (default=5[minutes, once every 5 minutes glucose is recorded])
-        Returns:
-            TIR (float): time in range, units=minutes
-
-    """
-    up = np.mean(df['Glucose']) + sd * np.std(df['Glucose'])
-    dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
-    TIR = len(df[(df['Glucose'] <= up) & (df['Glucose'] >= dw)]) * sr
-    return TIR
-
-
-def TOR(df, sd=1, sr=5):
-    """
-        Computes and returns the time outside range
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-            sd (integer): standard deviation for computing  range (default=1)
-            sr (integer): sampling rate (default=5[minutes, once every 5 minutes glucose is recorded])
-        Returns:
-            TOR (float): time outside range, units=minutes
-
-    """
-    up = np.mean(df['Glucose']) + sd * np.std(df['Glucose'])
-    dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
-    TOR = len(df[(df['Glucose'] >= up) | (df['Glucose'] <= dw)]) * sr
-    return TOR
-
-
-def MGE(df, sd=1):
-    """
-        Computes and returns the mean of glucose outside specified range
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-            sd (integer): standard deviation for computing range (default=1)
-        Returns:
-            MGE (float): the mean of glucose excursions (outside specified range)
-
-    """
-    up = np.mean(df['Glucose']) + sd * np.std(df['Glucose'])
-    dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
-    MGE = np.mean(df[(df['Glucose'] >= up) | (df['Glucose'] <= dw)].Glucose)
-    return MGE
-
-def MGN(df, sd=1):
-    """
-        Computes and returns the mean of glucose inside specified range
-        Args:
-            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
-            sd (integer): standard deviation for computing range (default=1)
-        Returns:
-            MGN (float): the mean of glucose excursions (inside specified range)
-
-    """
-    up = np.mean(df['Glucose']) + sd * np.std(df['Glucose'])
-    dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
-    MGN = np.mean(df[(df['Glucose'] <= up) & (df['Glucose'] >= dw)].Glucose)
-    return MGN
-
 if __name__ == '__main__':
     all_subjects_featureset= []
-    file = '../data/output/synthetic_dataset_raw_wMeals/synthetic_cgm_timeseries_allData.csv'
-    all_data = pd.read_csv(file)
-    all_data['timestamp'] = pd.to_datetime(all_data.timestamp) # Make datetime type
-    for subject in tqdm(all_data.subject.unique().tolist()):
-        df = all_data[all_data.subject == subject]
+    path = '../data/output/hall_raw_wMeals/'
+    for file in os.listdir(path):
+        if not file.endswith('.csv'):
+            continue
+        print(file)
+        df = pd.read_csv(os.path.join(path, file))
+        df['timestamp'] = pd.to_datetime(df.timestamp)
         df['day'] = [x.date().strftime(format='%Y-%m-%d') for x in df.timestamp]
         featureset = []
 
-        # Remove completely empty data
-        if df[['timestamp', 'Glucose', 'CHO']].dropna().empty:
+        if df.dropna().empty:
             continue
 
-        # create sliding window for feature derivation
-        start_time = df.timestamp.iloc[0]
-        while start_time <= df.timestamp.iloc[-1]:
-            try:
-                # expecting 30 samples per grouping
-                sub_df = df[(df.timestamp >= start_time) & (df.timestamp < (start_time + pd.to_timedelta(30, 'min')))]
-                sub_df = sub_df.sort_values('timestamp')
-                features = derive_cgm_features(sub_df)
-                start_block = sub_df.timestamp.iloc[0]
-                end_block = sub_df.timestamp.iloc[-1]
-                meta_info = pd.DataFrame([{'subject': subject,
-                                           'start_block': start_block,
-                                           'end_block': end_block,
-                                           'n_samples': len(sub_df),
-                                           'label(meal)': np.where(sub_df.CHO.sum() > 0, 1, 0)}])
-                combined_features = pd.concat([meta_info, features], axis=1)
-                # if len(combined_features) == 0:
-                #     print('s')
-                featureset.append(combined_features)
-                start_time = start_time + pd.to_timedelta(30, 'min')
-            except:
-                print('stop')
+        for day in df.day.unique().tolist():
+            day_df = df[df.day == day]
+            meals = day_df.dropna()
+            if meals.empty:
+                continue
+            start_time_day = meals.timestamp.iloc[0]
+            end_time =  meals.timestamp.iloc[-1]
+            negative_class = day_df[(day_df.timestamp < start_time_day) &
+                                    (day_df.timestamp > start_time_day - pd.to_timedelta(60*4, 'min'))]
+            negative_class['meal_flag'] = 0
+            positive_class = day_df[(day_df.timestamp >= start_time_day) &
+                                    (day_df.timestamp <= end_time)]
+            positive_class['meal_flag'] = 1
+            training_data = pd.concat([negative_class, positive_class])
+            sns.lineplot(data=training_data, x='timestamp', y='Glucose', hue='meal_flag')
+            plt.close()
+
+            # create sliding window for feature derivation
+            start_time = training_data.timestamp.iloc[0]
+            while start_time <= training_data.timestamp.iloc[-1]:
+                try:
+                    # expecting 30 samples per grouping
+                    sub_df = training_data[(training_data.timestamp >= start_time) & (training_data.timestamp < (start_time +
+                                                                                            pd.to_timedelta(30, 'min')))]
+                    sub_df = sub_df.sort_values('timestamp')
+                    features = derive_cgm_features(sub_df)
+                    start_block = sub_df.timestamp.iloc[0]
+                    end_block = sub_df.timestamp.iloc[-1]
+                    meta_info = pd.DataFrame([{'subject': training_data.userID.unique()[0],
+                                               'start_block': start_block,
+                                               'end_block': end_block,
+                                               'n_samples': len(sub_df),
+                                               'label(meal)': [1 if sum(sub_df.meal_flag) >
+                                                                    sub_df.meal_flag.sum()*0.5 else 0][0]}])
+                    combined_features = pd.concat([meta_info, features], axis=1)
+                    # if len(combined_features) == 0:
+                    #     print('s')
+                    featureset.append(combined_features)
+                    start_time = start_time + pd.to_timedelta(30, 'min')
+                except:
+                    print('stop')
         all_features = pd.concat(featureset)
         all_subjects_featureset.append(all_features)
     full_featureset = pd.concat(all_subjects_featureset)
-    full_featureset = full_featureset[full_featureset.n_samples == 30]
     os.makedirs('../data/output/features/', exist_ok=True)
-    full_featureset.to_csv('../data/output/features/synthetic_dataset_features.csv', index = False)
+    full_featureset.to_csv('../data/output/features/features_20230605.csv', index = False)
