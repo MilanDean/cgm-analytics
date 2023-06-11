@@ -1,14 +1,5 @@
+from src.api import app
+import subprocess
 
-from fastapi import FastAPI, HTTPException
-
-app = FastAPI(docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
-
-
-@app.get("/hello")
-async def table():
-    pass
-
-@app.get("/")
-async def root():
-    # 501 error is the default `Not Implemented` status code
-    raise HTTPException(status_code=501, detail="Not implemented")
+if __name__ == "__main__":
+    subprocess.run("uvicorn main:app --reload", shell=True)
