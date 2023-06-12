@@ -1,6 +1,7 @@
-import os
-
+import sklearn.preprocessing
+from sklearn.preprocessing import LabelEncoder
 from modeling_util import *
+from lightgbm import LGBMModel
 import pickle
 import warnings
 warnings.filterwarnings("ignore")
@@ -30,7 +31,7 @@ def drop_high_correlated_features(clean_df):
     sns.heatmap(clean_df.drop(to_drop, axis=1).corr(), annot = True)
     plt.tight_layout()
     os.makedirs('../data/output/corrplots/', exist_ok = True)
-    plt.savefig('../data/output/corrplots/baseline_logreg_corrplot_features.png')
+    plt.savefig('../data/output/corrplots/baseline_lgbm_corrplot_features.png')
     plt.close()
 
     return to_drop
@@ -60,9 +61,9 @@ def set_up_train_test_data(train_df, test_df):
     return train_X, train_Y, test_X, test_Y, standScale
 
 def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
-    fpr_train, tpr_train, thresholds_train = metrics.roc_curve(train_Y, train_probs[:, 1], pos_label=1)
+    fpr_train, tpr_train, thresholds_train = metrics.roc_curve(train_Y, train_probs, pos_label=1)
     roc_auc_train = metrics.auc(fpr_train, tpr_train)
-    fpr, tpr, thresholds = metrics.roc_curve(test_Y, test_probs[:, 1], pos_label=1)
+    fpr, tpr, thresholds = metrics.roc_curve(test_Y, test_probs, pos_label=1)
     roc_auc_test = metrics.auc(fpr, tpr)
     plt.plot(fpr_train, tpr_train, label = 'train ({:.2f})'.format(roc_auc_train))
     plt.plot(fpr, tpr, label='test ({:.2f})'.format(roc_auc_test), linestyle='--')
@@ -73,7 +74,7 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
     plt.ylabel("True Positive Rate")
     plt.title("ROC Curve")
     plt.legend(loc="lower right")
-    plt.savefig('../data/output/training/baseline_logreg_ROC_{}.png'.format(
+    plt.savefig('../data/output/training/baseline_lgbm_ROC_{}.png'.format(
         datetime.today().strftime('%Y%m%d')))
 
 if __name__ == '__main__':
@@ -97,6 +98,8 @@ if __name__ == '__main__':
 
     # Train-Test Split
     # Balance
+    label_encode = LabelEncoder()
+    df['group_num'] = label_encode.fit_transform(df.subject)
     df = df.rename(columns={'label(meal)': 'meal'})
     if balance == True:
         df = balance_onSubject(df)
@@ -124,86 +127,92 @@ if __name__ == '__main__':
                              'auc': 0.5})
 
     #### Logistic Regression ####
-    logReg = LogisticRegression(random_state=1, penalty='l1',
-                                solver='liblinear', class_weight='balanced')
-    logReg.fit(train_X, train_Y)
-    test_probs = logReg.predict_proba(test_X)
+    group_array = train_df.groupby(["subject"])["subject"].count().to_numpy()
+    lgbm = LGBMModel(boosting_type = 'gbdt', objective='binary',
+                     class_weight='balanced')
+    lgbm.fit(train_X, train_Y, group=group_array)
+    test_probs = lgbm.predict(test_X)
 
     # estimate J index threshold
-    optimal_threshold = float(j_index_threshold(test_Y, test_probs))
+    optimal_threshold = float(j_index_threshold(test_Y, test_probs, lgbm = True))
 
-    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs[:, 1]]
+    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs]
     # yPrime_train = nnCLF.predict(train_X)
-    train_probs = logReg.predict_proba(train_X)
-    train_yPrime = [0 if x < 0.5 else 1 for x in train_probs[:, 1]]
+    train_probs = lgbm.predict(train_X)
+    train_yPrime = [0 if x < 0.5 else 1 for x in train_probs]
     print(accuracy_score(test_Y, yPrime))
     print(roc_auc_score(test_Y, yPrime))
     print(classification_report(test_Y, yPrime))
-    baseline_results.append({'model': 'untuned_logReg',
+    baseline_results.append({'model': 'untuned_lgbm',
                              'accuracy': accuracy_score(test_Y, yPrime),
                              'roc_auc': roc_auc_score(test_Y, yPrime),
                              'auc': 0.5})
 
     #### Hyperparameter Tuned Models ####
     # Log Reg
-    group_array = np.array(train_df.subject)
     sgkf = StratifiedGroupKFold(n_splits=5)
+    n_estimators = [int(x) for x in np.linspace(start=10, stop=100, num=10)]
+    max_depth = [int(x) for x in np.linspace(10, 100, num=10)]
+    max_depth.append(None)
     # Use GridSearch
-    lr_clf = GridSearchCV(estimator=LogisticRegression(random_state=1, penalty='l1',
-                                                       solver='liblinear', class_weight='balanced'),
-                          param_grid={'C': np.logspace(-4, 4, 20)}, n_jobs=-1, cv=sgkf, scoring='roc_auc')
+    lgbm_clf = GridSearchCV(estimator= LGBMModel(boosting_type = 'gbdt', objective='binary',
+                     class_weight='balanced'),
+                    param_grid={'n_estimators': n_estimators,
+                                'max_depth': max_depth}, n_jobs=-1, cv=sgkf, scoring='roc_auc')
     # Fit the model
-    lr_clf.fit(train_X, train_Y, groups=group_array)
-    lfF_clf = LogisticRegression(C=lr_clf.best_estimator_.get_params()['C'], random_state=1, penalty='l1',
-                                 solver='liblinear', class_weight=None)
+    lgbm_clf.fit(train_X, train_Y, groups=train_df.subject)
+    lgbmF_clf = LGBMModel(boosting_type = 'gbdt', objective='binary',
+                     class_weight='balanced', n_estimators=lgbm_clf.best_estimator_.get_params()['n_estimators'],
+                                   max_depth=lgbm_clf.best_estimator_.get_params()['max_depth'],
+                                   random_state=1)
 
-    lr_cv_scores_roc_auc = cross_val_score(estimator=lfF_clf, X=train_X, y=train_Y, groups=group_array,
+    lr_cv_scores_roc_auc = cross_val_score(estimator=lgbmF_clf, X=train_X, y=train_Y, groups=train_df.subject,
                                    cv=sgkf, n_jobs=-1, scoring='roc_auc')
-    lr_cv_scores_accuracy = cross_val_score(estimator=lfF_clf, X=train_X, y=train_Y, groups=group_array,
+    lr_cv_scores_accuracy = cross_val_score(estimator=lgbmF_clf, X=train_X, y=train_Y, groups=train_df.subject,
                                    cv=sgkf, n_jobs=-1, scoring='accuracy')
-    lr_cv_scores_f1 = cross_val_score(estimator=lfF_clf, X=train_X, y=train_Y, groups=group_array,
+    lr_cv_scores_f1 = cross_val_score(estimator=lgbmF_clf, X=train_X, y=train_Y, groups=train_df.subject,
                                    cv=sgkf, n_jobs=-1, scoring='f1_weighted')
-    lfF_clf.fit(train_X, train_Y)
-    test_probs = lfF_clf.predict_proba(test_X)
-    optimal_threshold = j_index_threshold(test_Y, test_probs)
-    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs[:, 1]]
+    lgbmF_clf.fit(train_X, train_Y)
+    test_probs = lgbmF_clf.predict(test_X)
+    optimal_threshold = j_index_threshold(test_Y, test_probs, lgbm=True)
+    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs]
     print(accuracy_score(test_Y, yPrime))
     print(roc_auc_score(test_Y, yPrime))
     print(classification_report(test_Y, yPrime))
-    baseline_results.append({'model': 'tuned_logReg',
+    baseline_results.append({'model': 'tuned_lgbm',
                              'accuracy': accuracy_score(test_Y, yPrime),
                              'roc_auc': roc_auc_score(test_Y, yPrime)})
 
     os.makedirs('../data/output/training/', exist_ok=True)
     pd.DataFrame({'feature': train_X.columns,
-                  'weight': lfF_clf.coef_[0]}).sort_values('weight').to_csv(
+                  'importance': lgbmF_clf.feature_importances_[0]}).sort_values('importance').to_csv(
         '../data/output/training/LogReg_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
     cm = confusion_matrix(test_Y, yPrime)
     ConfusionMatrixDisplay(cm).plot()
-    plt.savefig('../data/output/training/LogReg_confMat_{}.png'.format(datetime.today().strftime('%Y%m%d')))
+    plt.savefig('../data/output/training/lgbm_confMatrix_{}.png'.format(datetime.today().strftime('%Y%m%d')))
     plt.close()
 
     # Save the meal predictions
     test_df['predictions'] = yPrime
-    test_df.to_csv('../data/output/training/baseline_logreg_predicitons_{}.csv'.format(
+    test_df.to_csv('../data/output/training/baseline_lgbm_predicitons_{}.csv'.format(
         datetime.today().strftime('%Y%m%d')), index = False)
 
     # Plot ROC Curve
-    train_probs = lfF_clf.predict_proba(train_X)
-    optimal_threshold_train = j_index_threshold(train_Y, train_probs)
-    yPrime_train = [0 if x < optimal_threshold else 1 for x in train_probs[:, 1]]
+    train_probs = lgbmF_clf.predict(train_X)
+    optimal_threshold_train = j_index_threshold(train_Y, train_probs, lgbm=True)
+    yPrime_train = [0 if x < optimal_threshold else 1 for x in train_probs]
     plot_roc_curves(train_Y, train_probs, test_Y, test_probs)
 
     # Save results
     results = pd.DataFrame(baseline_results).sort_values('roc_auc', ascending=False)
-    results.to_csv('../data/output/training/baseline_logreg_results.csv', index = False)
+    results.to_csv('../data/output/training/baseline_lgbm_results.csv', index = False)
     print(results)
 
-    # save model
+    # Save models
     os.makedirs('../data/output/models/', exist_ok=True)
-    with open('../data/output/models/logreg_model.pickle', 'wb') as handle:
-        pickle.dump(lfF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    scalerfile = '../data/output/models/logreg_standard_scaler.pickle'
+    with open('../data/output/models/lgbm_model.pickle', 'wb') as handle:
+        pickle.dump(lgbmF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    scalerfile = '../data/output/models/lgbm_standard_scaler.pickle'
     pickle.dump(standScale, open(scalerfile, 'wb'))
 
     # Look at predictions

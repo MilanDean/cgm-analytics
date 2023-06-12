@@ -41,7 +41,17 @@ def balance_onSubject(df):
     return pd.concat(results)
 
 
-def j_index_threshold(val_Y, val_probs):
-    fpr, tpr, _thresholds = metrics.roc_curve(val_Y, val_probs[:, 1], pos_label=1)
+def j_index_threshold(val_Y, val_probs, lgbm = False):
+    '''
+    Calculate the J-Index (optimal threshold for Binary labels)
+    :param val_Y: True Y value
+    :param val_probs: predicted value probability
+    :param lgbm: flag to indicate if the model you are evaluating is an LGBM model
+    :return: the threshold for binary classification (J-Index)
+    '''
+    if lgbm==True:
+        fpr, tpr, _thresholds = metrics.roc_curve(val_Y, val_probs, pos_label=1)
+    else:
+        fpr, tpr, _thresholds = metrics.roc_curve(val_Y, val_probs[:, 1], pos_label=1)
     j_index = _thresholds[np.argmax(tpr - fpr)]
     return j_index

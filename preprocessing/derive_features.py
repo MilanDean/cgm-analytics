@@ -95,24 +95,24 @@ def derive_cgm_features(data, plot_flag=False):
            'first_quartile': data.Glucose.quantile(0.25),
            'third_quartile': data.Glucose.quantile(0.75),
         #'interday_std': cgmq.interdaysd(data),
-           #'interdaycv': cgmq.interdaycv(data),
+           'interdaycv': interdaycv(data),
            # 'intradaysd': cgmq.intradaysd(data) # Does Not Work
            # 'intradaycv': cgmq.intradaycv(data) # Does Not Work
            'TOR': TOR(data, sd=1, sr=1)/ len(data), # change to 1? # sr is the sampling rate inverse in minutes of the CGM
            'TIR': TIR(data, sd=1, sr=1)/ len(data), # changing to a %
-           #'POR': cgmq.POR(data, sd=1, sr=1), # change to 1?
+           'POR': POR(data, sd=1, sr=1), # change to 1?
+           'PIR': PIR(data, sd=1, sr=1),
            'MGE': MGE(data, sd=1), # Does Not Work
            'MGN': MGN(data, sd=1), # Does Not Work
            # 'MAGE': MAGE(data, std=1), # Does Not Work, - same as CV
            'J_index': J_index(data), # removed 12/12/22
            'LBGI': LBGI(data),
            'HBGI': HBGI(data),
-           # 'ADRR': cgmq.ADRR(data),
+           # 'ADRR': ADRR(data),
            # 'MODD': cgmq.MODD(data), # Does Not Work
            # 'CONGA24': cgmq.CONGA24(data) # Does Not Work
            'GMI': GMI(data),
            'eA1c': eA1c(data), # Removed 12/12/22
-           # 'std': np.std(data.Glucose), # repeated above
            'entropy': stats.entropy(pk=data['Glucose'], base=2),
            'time_period': time_feature(data)
            }
@@ -128,6 +128,41 @@ def derive_cgm_features(data, plot_flag=False):
 
     return combined_df
 
+
+def PIR(df, sd=1, sr=5):
+    """
+        Computes and returns the percent time inside range
+        Args:
+            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
+            sd (integer): standard deviation for computing range (default=1)
+            sr (integer): sampling rate (default=5[minutes, once every 5 minutes glucose is recorded])
+        Returns:
+            PIR (float): percent time inside range, units=%
+
+    """
+    up = np.mean(df['Glucose']) + sd * np.std(df['Glucose'])
+    dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
+    TIR = len(df[(df['Glucose'] <= up) | (df['Glucose'] >= dw)]) * sr
+    PIR = (TIR / (len(df) * sr)) * 100
+    return PIR
+
+def POR(df, sd=1, sr=5):
+    """
+        Computes and returns the percent time outside range
+        Args:
+            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
+            sd (integer): standard deviation for computing range (default=1)
+            sr (integer): sampling rate (default=5[minutes, once every 5 minutes glucose is recorded])
+        Returns:
+            POR (float): percent time outside range, units=%
+
+    """
+    up = np.mean(df['Glucose']) + sd * np.std(df['Glucose'])
+    dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
+    TOR = len(df[(df['Glucose'] >= up) | (df['Glucose'] <= dw)]) * sr
+    POR = (TOR / (len(df) * sr)) * 100
+    return POR
+
 def eA1c(df):
     """
         Computes and returns the American Diabetes Association estimated HbA1c
@@ -138,7 +173,7 @@ def eA1c(df):
 
     """
     eA1c = (46.7 + np.mean(df['Glucose'])) / 28.7
-    return
+    return eA1c
 
 def GMI(df):
     """
@@ -328,6 +363,19 @@ def MGN(df, sd=1):
     dw = np.mean(df['Glucose']) - sd * np.std(df['Glucose'])
     MGN = np.mean(df[(df['Glucose'] <= up) & (df['Glucose'] >= dw)].Glucose)
     return MGN
+
+
+def interdaycv(df):
+    """
+        Computes and returns the interday coefficient of variation of glucose
+        Args:
+            (pd.DataFrame): dataframe of data with DateTime, Time and Glucose columns
+        Returns:
+            cvx (float): interday coefficient of variation averaged over all days
+
+    """
+    cvx = (np.std(df['Glucose']) / (np.mean(df['Glucose']))) * 100
+    return cvx
 
 if __name__ == '__main__':
     all_subjects_featureset= []
