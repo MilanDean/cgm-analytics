@@ -34,8 +34,8 @@ export default function Analysis() {
             src={`http://127.0.0.1:8000/api/graph/${graphId}`}
             alt={`Graph ${graphId}`}
             className="dark:invert mx-3"
-            width={700}
-            height={350}
+            width={1200}
+            height={400}
             priority
         />
     ));
@@ -87,7 +87,7 @@ const columns = Object.keys(data[0] || {});
               </tbody>
             </table>
           </div>
-          <div className="p-10 h-1/2 flex justify-center items-center">
+          <div className="flex p-3 h-1/2 justify-center items-center">
             {renderGraphs()}
           </div>
         </div>

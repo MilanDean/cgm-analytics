@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse, FileResponse
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 
 import io
 import os
@@ -106,23 +107,29 @@ async def generate_graph():
 
 
 def generate_graph_1(df):
-    # Generate the first graph
-    plt.plot(df['work_year'], df['salary_in_usd'])
-    plt.xlabel('Work Year')
-    plt.ylabel('Salary (USD)')
-    plt.title('Salary by Year')
+    # Generate the first graph - Line Graph
+    fig,ax = plt.subplots(figsize=(10,6))
 
-    return plt
+    sns.lineplot(data=df, x='work_year', y='salary_in_usd', ax=ax, color='black')
+    plt.locator_params(axis='x', nbins=4)
+    ax.set_title("Data Science Salary by Year")
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Salary (USD)")
+
+    return fig
 
 
 def generate_graph_2(df):
-    # Generate the second graph
-    plt.bar(df['job_title'], df['salary_in_usd'])
-    plt.xlabel('Title')
-    plt.ylabel('Salary (USD)')
-    plt.title('Salary by Title')
+    # Generate the second graph - Bar Graph
+    fig,ax = plt.subplots(figsize=(10,6))
 
-    return plt
+    sns.barplot(data=df.sort_values(by="salary_in_usd", ascending=False).head(10), x='job_title', y='salary_in_usd', ax=ax, palette='coolwarm')
+    ax.set_title("Top 10 Salaries and Role")
+    ax.set_xlabel("Role")
+    ax.set_xticklabels(labels=ax.get_xticklabels(), rotation=45, ha="right")
+    ax.set_ylabel("Salary (USD)")
+
+    return fig
 
 
 def generate_unique_id():
