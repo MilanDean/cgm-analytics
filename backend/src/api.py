@@ -39,7 +39,7 @@ async def process_csv_file(file: UploadFile):
         records = df.to_dict(orient="records")
         data_store['analysis_data'] = records
 
-        return JSONResponse(content=records)
+        return {"message": "Success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -15,16 +15,16 @@ export default function Analysis() {
       fetchData();
   }, []);
 
-  const fetchData = async () => {
-      try {
-          const response = await axios.get('http://127.0.0.1:8000/api/analysis');
-          setData(response.data);
-
-          const graphResponse = await axios.post('http://127.0.0.1:8000/api/generate_graph');
-          setGraphIds(graphResponse.data.graph_ids);
-      } catch (error) {
-          console.error(error);
-      }
+  const fetchData = () => {
+    axios.get('http://127.0.0.1:8000/api/analysis').then((response) => {
+      setData(response.data);
+    })
+    axios.post('http://127.0.0.1:8000/api/generate_graph').then((graphResponse) => {
+      setGraphIds(graphResponse.data.graph_ids);
+    })
+    .catch((error) => {
+      console.log(error);
+    })
   };
 
   const renderGraphs = () => {
