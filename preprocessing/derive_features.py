@@ -117,14 +117,7 @@ def derive_cgm_features(data, plot_flag=False):
            'time_period': time_feature(data)
            }
     obj_df = pd.DataFrame([obj])
-    #combined_df = pd.concat([summary_features, obj_df, firstOrdDeriv, cgm_ranges, dynamicRisk_df], axis = 1)
     combined_df = pd.concat([obj_df, firstOrdDeriv, cgm_ranges, dynamicRisk_df], axis=1)
-
-    # # plotting
-    # if plot_flag:
-    #     cgmq.plotglucosebounds(data, upperbound=180, lowerbound=70, size=15)
-    #     cgmq.plotglucosesd(data, sd=1, size=15)
-    #     cgmq.plotglucosesmooth(data, size=15)
 
     return combined_df
 
@@ -377,9 +370,35 @@ def interdaycv(df):
     cvx = (np.std(df['Glucose']) / (np.mean(df['Glucose']))) * 100
     return cvx
 
+def meals_before_after(df, columns = ['mean', 'median', 'min', 'max', 'std', 'first_quartile',
+       'third_quartile', 'interdaycv', 'TOR', 'TIR', 'POR', 'PIR', 'MGE',
+       'MGN', 'J_index', 'LBGI', 'HBGI', 'GMI', 'eA1c', 'entropy',
+       'time_period', 'ROC_min', 'ROC_max', 'ROC_mean', 'ROC_median',
+       'very_low_range', 'low_range', 'target_range', 'high_range',
+       'very_high_range', 'dynamic_risk_min', 'dynamic_risk_max',
+       'dynamic_risk_mean', 'dynamic_risk_median']):
+
+    '''
+    # excluding 'n_samples', 'meal' from columns - do not need and label is meal
+
+    Get features related to previous and next meal. This is based on shifting features ±1 row
+    :param df: dataframe of features derived from CGM (on subject level!)
+    :param columns: default columns for features to use for shifts
+    :return: combined dataframe of next meal and previous meal features
+    '''
+    meals_before = df[columns].shift(1) # shift results down 1 to get previous meal data
+    meals_before.columns = ['{}_before'.format(x) for x in columns]
+    meals_after = df[columns].shift(-1) # shift results down 1 to get next meal data
+    meals_after.columns = ['{}_after'.format(x) for x in columns]
+
+    combined = pd.concat([meals_before, meals_after], axis = 1)
+
+    return combined
+
 if __name__ == '__main__':
     all_subjects_featureset= []
-    file = '../data/output/synthetic_dataset_raw_wMeals/synthetic_cgm_timeseries_allData.csv'
+    file = '../data/output/synthetic_dataset_raw_wMeals/20230622_synthetic_T1DB_interpolated_dataset.csv'
+    # --- ORiginal 16hr data ---- synthetic_cgm_timeseries_allData.csv'
     all_data = pd.read_csv(file)
     all_data['timestamp'] = pd.to_datetime(all_data.timestamp) # Make datetime type
     for subject in tqdm(all_data.subject.unique().tolist()):
@@ -414,8 +433,10 @@ if __name__ == '__main__':
             except:
                 print('stop')
         all_features = pd.concat(featureset)
-        all_subjects_featureset.append(all_features)
+        prePost_meal_features = meals_before_after(all_features)
+        join_wSub_df = pd.concat([all_features, prePost_meal_features], axis=1)
+        all_subjects_featureset.append(join_wSub_df)
     full_featureset = pd.concat(all_subjects_featureset)
-    full_featureset = full_featureset[full_featureset.n_samples == 30]
+    full_featureset = full_featureset[full_featureset.n_samples == 60]
     os.makedirs('../data/output/features/', exist_ok=True)
     full_featureset.to_csv('../data/output/features/synthetic_dataset_features.csv', index = False)

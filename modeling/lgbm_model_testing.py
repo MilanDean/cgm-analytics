@@ -79,41 +79,17 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    df = pd.read_csv('../data/output/features/synthetic_dataset_features.csv')
-    df.head()
-
-    # Data Cleaning
-    print('shape of data: ', df.shape)
-    print()
-    print('NA Values')
-    print(pd.DataFrame(df.isnull().sum()))
-    df = df.dropna(axis=0)  # Drop NA values
-    print()
-
-    print('number of unique subjects: ', df.subject.nunique())
-    df.head()
-    clean_df = df.iloc[:, 5:]  # only features, not the indexing stuff
-    print('shape of new dataframe: ', clean_df.shape)
-    clean_df.dtypes
-
-    # Train-Test Split
-    # Balance
-    label_encode = LabelEncoder()
-    df['group_num'] = label_encode.fit_transform(df.subject)
-    df = df.rename(columns={'label(meal)': 'meal'})
-    if balance == True:
-        df = balance_onSubject(df)
-    else:
-        pass
-    train_df, test_df = split_train_test(df)
-
-    # Drop Highly Correlated Features
-    to_drop = drop_high_correlated_features(clean_df)
-    train_df = train_df.drop(to_drop, axis=1)
-    test_df = test_df.drop(to_drop, axis=1)
+    train_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_val_set.csv') # I know it says test, but its val
+    #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
-    train_X, train_Y, test_X, test_Y, standScale = set_up_train_test_data(train_df, test_df)
+    train_X = train_df.iloc[:,:-2]
+    train_Y = train_df.meal
+    test_X = test_df.iloc[:,:-2]
+    test_Y = test_df.meal
+    # val_X = val_df.iloc[:,:-1]
+    # val_Y = val_df.meal
 
     #####################
     ### Model Testing ###
@@ -124,7 +100,7 @@ if __name__ == '__main__':
         len(train_Y)))  # used to be np.ones but switched to 0s for majority class
     baseline_results.append({'model': 'predict_all_0s',
                              'accuracy': acc_baseline,
-                             'auc': 0.5})
+                             'roc_auc': 0.5})
 
     #### Logistic Regression ####
     group_array = train_df.groupby(["subject"])["subject"].count().to_numpy()
@@ -141,12 +117,12 @@ if __name__ == '__main__':
     train_probs = lgbm.predict(train_X)
     train_yPrime = [0 if x < 0.5 else 1 for x in train_probs]
     print(accuracy_score(test_Y, yPrime))
-    print(roc_auc_score(test_Y, yPrime))
+    print(roc_auc_score(test_Y, test_probs))
     print(classification_report(test_Y, yPrime))
     baseline_results.append({'model': 'untuned_lgbm',
                              'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, yPrime),
-                             'auc': 0.5})
+                             'roc_auc': roc_auc_score(test_Y, test_probs),
+                             })
 
     #### Hyperparameter Tuned Models ####
     # Log Reg
@@ -177,16 +153,16 @@ if __name__ == '__main__':
     optimal_threshold = j_index_threshold(test_Y, test_probs, lgbm=True)
     yPrime = [0 if x < optimal_threshold else 1 for x in test_probs]
     print(accuracy_score(test_Y, yPrime))
-    print(roc_auc_score(test_Y, yPrime))
+    print(roc_auc_score(test_Y, test_probs))
     print(classification_report(test_Y, yPrime))
     baseline_results.append({'model': 'tuned_lgbm',
                              'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, yPrime)})
+                             'roc_auc': roc_auc_score(test_Y, test_probs)})
 
     os.makedirs('../data/output/training/', exist_ok=True)
     pd.DataFrame({'feature': train_X.columns,
                   'importance': lgbmF_clf.feature_importances_[0]}).sort_values('importance').to_csv(
-        '../data/output/training/LogReg_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
+        '../data/output/training/lgbm_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
     cm = confusion_matrix(test_Y, yPrime)
     ConfusionMatrixDisplay(cm).plot()
     plt.savefig('../data/output/training/lgbm_confMatrix_{}.png'.format(datetime.today().strftime('%Y%m%d')))
@@ -209,11 +185,11 @@ if __name__ == '__main__':
     print(results)
 
     # Save models
-    os.makedirs('../data/output/models/', exist_ok=True)
-    with open('../data/output/models/lgbm_model.pickle', 'wb') as handle:
-        pickle.dump(lgbmF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    scalerfile = '../data/output/models/lgbm_standard_scaler.pickle'
-    pickle.dump(standScale, open(scalerfile, 'wb'))
+    # os.makedirs('../data/output/models/', exist_ok=True)
+    # with open('../data/output/models/lgbm_model.pickle', 'wb') as handle:
+    #     pickle.dump(lgbmF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    # scalerfile = '../data/output/models/lgbm_standard_scaler.pickle'
+    # pickle.dump(standScale, open(scalerfile, 'wb'))
 
     # Look at predictions
     for subj in test_df.subject.unique().tolist():

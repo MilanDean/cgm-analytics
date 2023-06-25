@@ -78,39 +78,17 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    df = pd.read_csv('../data/output/features/synthetic_dataset_features.csv')
-    df.head()
-
-    # Data Cleaning
-    print('shape of data: ', df.shape)
-    print()
-    print('NA Values')
-    print(pd.DataFrame(df.isnull().sum()))
-    df = df.dropna(axis=0)  # Drop NA values
-    print()
-
-    print('number of unique subjects: ', df.subject.nunique())
-    df.head()
-    clean_df = df.iloc[:, 5:]  # only features, not the indexing stuff
-    print('shape of new dataframe: ', clean_df.shape)
-    clean_df.dtypes
-
-    # Train-Test Split
-    # Balance
-    df = df.rename(columns={'label(meal)': 'meal'})
-    if balance == True:
-        df = balance_onSubject(df)
-    else:
-        pass
-    train_df, test_df = split_train_test(df)
-
-    # Drop Highly Correlated Features
-    to_drop = drop_high_correlated_features(clean_df)
-    train_df = train_df.drop(to_drop, axis=1)
-    test_df = test_df.drop(to_drop, axis=1)
+    train_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_val_set.csv') # I know it says test, but its val
+    #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
-    train_X, train_Y, test_X, test_Y, standScale = set_up_train_test_data(train_df, test_df)
+    train_X = train_df.iloc[:,:-2]
+    train_Y = train_df.meal
+    test_X = test_df.iloc[:,:-2]
+    test_Y = test_df.meal
+    # val_X = val_df.iloc[:,:-1]
+    # val_Y = val_df.meal
 
     #####################
     ### Model Testing ###
@@ -121,7 +99,7 @@ if __name__ == '__main__':
         len(train_Y)))  # used to be np.ones but switched to 0s for majority class
     baseline_results.append({'model': 'predict_all_0s',
                              'accuracy': acc_baseline,
-                             'auc': 0.5})
+                             'roc_auc': 0.5})
 
     #### Logistic Regression ####
     logReg = LogisticRegression(random_state=1, penalty='l1',
@@ -137,12 +115,12 @@ if __name__ == '__main__':
     train_probs = logReg.predict_proba(train_X)
     train_yPrime = [0 if x < 0.5 else 1 for x in train_probs[:, 1]]
     print(accuracy_score(test_Y, yPrime))
-    print(roc_auc_score(test_Y, yPrime))
+    print(roc_auc_score(test_Y, test_probs[:,1]))
     print(classification_report(test_Y, yPrime))
     baseline_results.append({'model': 'untuned_logReg',
                              'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, yPrime),
-                             'auc': 0.5})
+                             'roc_auc': roc_auc_score(test_Y, test_probs[:,1]),
+                             })
 
     #### Hyperparameter Tuned Models ####
     # Log Reg
@@ -168,11 +146,11 @@ if __name__ == '__main__':
     optimal_threshold = j_index_threshold(test_Y, test_probs)
     yPrime = [0 if x < optimal_threshold else 1 for x in test_probs[:, 1]]
     print(accuracy_score(test_Y, yPrime))
-    print(roc_auc_score(test_Y, yPrime))
+    print(roc_auc_score(test_Y, test_probs[:,1]))
     print(classification_report(test_Y, yPrime))
     baseline_results.append({'model': 'tuned_logReg',
                              'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, yPrime)})
+                             'roc_auc': roc_auc_score(test_Y, test_probs[:,1])})
 
     os.makedirs('../data/output/training/', exist_ok=True)
     pd.DataFrame({'feature': train_X.columns,
@@ -199,12 +177,12 @@ if __name__ == '__main__':
     results.to_csv('../data/output/training/baseline_logreg_results.csv', index = False)
     print(results)
 
-    # save model
-    os.makedirs('../data/output/models/', exist_ok=True)
-    with open('../data/output/models/logreg_model.pickle', 'wb') as handle:
-        pickle.dump(lfF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    scalerfile = '../data/output/models/logreg_standard_scaler.pickle'
-    pickle.dump(standScale, open(scalerfile, 'wb'))
+    # # save model
+    # os.makedirs('../data/output/models/', exist_ok=True)
+    # with open('../data/output/models/logreg_model.pickle', 'wb') as handle:
+    #     pickle.dump(lfF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    # scalerfile = '../data/output/models/logreg_standard_scaler.pickle'
+    # pickle.dump(standScale, open(scalerfile, 'wb'))
 
     # Look at predictions
     for subj in test_df.subject.unique().tolist():
