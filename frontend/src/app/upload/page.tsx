@@ -12,6 +12,8 @@ export default function Upload() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    router.push('/analysis')
+
     if (!file) {
       return;
     }
@@ -30,7 +32,6 @@ export default function Upload() {
       if (response.status === 200) {
         // Redirect to the analysis page to load the data we've just uploaded
         console.log('Successfully sent payload to FastAPI.')
-        router.push('/analysis')
       }
 
       console.log(response.data);

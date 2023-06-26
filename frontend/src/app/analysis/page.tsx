@@ -1,56 +1,116 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import Image from 'next/image';
 import TopNav from '../components/TopNav';
-import classNames from 'classnames';
 
-export default function Analysis() {
-  const [data, setData] = useState([]);
-  const [graphIds, setGraphIds] = useState([]);
+function useInterval(callback: () => void, delay: number | null): void {
+  const savedCallback = useRef<() => void>();
 
   useEffect(() => {
-      fetchData();
-  }, []);
+    savedCallback.current = callback;
+  }, [callback]);
 
-  const fetchData = () => {
-    axios.get('http://127.0.0.1:8000/api/analysis').then((response) => {
-      setData(response.data);
-    })
-    axios.post('http://127.0.0.1:8000/api/generate_graph').then((graphResponse) => {
-      setGraphIds(graphResponse.data.graph_ids);
-    })
-    .catch((error) => {
-      console.log(error);
-    })
+  useEffect(() => {
+    let isMounted = true;
+
+    function tick(): void {
+      savedCallback.current!();
+    }
+
+    if (delay !== null) {
+      const intervalId = setInterval(tick, delay);
+      return () => {
+        clearInterval(intervalId);
+        isMounted = false;
+      };
+    }
+  }, [delay]);
+}
+
+type RowData = { [key: string]: any };
+
+export default function Analysis(): JSX.Element {
+  const [data, setData] = useState<RowData[]>([]);
+  const [graphIds, setGraphIds] = useState<string[]>([]);
+  const [isDataAvailable, setIsDataAvailable] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  const fetchData = (): void => {
+    setIsLoading(true);
+
+    axios
+      .get<RowData[]>('http://127.0.0.1:8000/api/analysis')
+      .then((response) => {
+        setData(response.data);
+        checkDataAvailability(response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+
+    axios
+      .post<{ graph_ids: string[] }>('http://127.0.0.1:8000/api/generate_graph')
+      .then((graphResponse) => {
+        setGraphIds(graphResponse.data.graph_ids);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
   };
 
-  const renderGraphs = () => {
+  const checkDataAvailability = (responseData: RowData[]): void => {
+    if (responseData.length > 0) {
+      setIsDataAvailable(true);
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useInterval(() => {
+    if (isLoading) {
+      fetchData();
+      setElapsedTime((prevElapsedTime) => prevElapsedTime + 3000);
+    }
+  }, 3000);
+
+  useEffect(() => {
+    if (elapsedTime >= 10000) {
+      setElapsedTime(0);
+      setIsLoading(false);
+    }
+  }, [elapsedTime]);
+
+  const renderGraphs = (): JSX.Element[] => {
     return graphIds.map((graphId) => (
-        <Image
-            key={graphId}
-            src={`http://127.0.0.1:8000/api/graph/${graphId}`}
-            alt={`Graph ${graphId}`}
-            className="dark:invert mx-3"
-            width={1200}
-            height={400}
-            priority
-        />
+      <Image
+        key={graphId}
+        src={`http://127.0.0.1:8000/api/graph/${graphId}`}
+        alt={`Graph ${graphId}`}
+        className="dark:invert mx-3"
+        width={1200}
+        height={400}
+        priority
+      />
     ));
   };
 
-const columns = Object.keys(data[0] || {});
-  
+  const columns = Object.keys(data[0] || {});
+
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <TopNav />
       <div className="mt-8 flow-root">
         <div className="-mx-4 -my-2 sm:-mx-6 lg:-mx-8 border-2 border-black justify-center items-center">
-          <header className='p-5'> 
-            <div className='text-center text-2xl font-mono font-bold'>
-              <h1> Analytics Dashboard </h1>
+          <header className="p-5">
+            <div className="text-center text-2xl font-mono font-bold">
+              <h1>Analytics Dashboard</h1>
             </div>
           </header>
           <div className="flex md:table-fixed overflow-x-auto h-96 overflow-y-auto py-2">
@@ -61,7 +121,7 @@ const columns = Object.keys(data[0] || {});
                     <th
                       key={column}
                       scope="col"
-                      className="sticky top-0 z-10 border-b border-gray-300 bg-white bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8"
+                      className="sticky top-0 z-10 border-b border-gray-300 bg-white bg-opacity-75 py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 backdrop-blur-lg"
                     >
                       {column}
                     </th>
@@ -69,29 +129,35 @@ const columns = Object.keys(data[0] || {});
                 </tr>
               </thead>
               <tbody>
-                {data.map((record) => (
-                  <tr key={uuidv4()}>
-                    {columns.map((column) => (
-                      <td
-                        key={column}
-                        className={classNames(
-                          'border-b border-gray-200',
-                          'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8'
-                        )}
-                      >
-                        {record[column]}
-                      </td>
-                    ))}
+                {isLoading ? (
+                  <tr className="text-center">
+                    <td
+                      colSpan={columns.length}
+                      className="border-b border-gray-200 bg-white px-4 py-3 text-sm text-center font-semibold text-gray-900"
+                    >
+                      Data loading...
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  data.map((row) => (
+                    <tr key={uuidv4()}>
+                      {columns.map((column) => (
+                        <td
+                          key={column}
+                          className="border-b border-gray-200 bg-white px-4 py-3 text-sm"
+                        >
+                          {row[column]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-          <div className="flex p-3 h-1/2 justify-center items-center">
-            {renderGraphs()}
-          </div>
         </div>
       </div>
+      <div className="mt-8">{renderGraphs()}</div>
     </div>
-  )
-};
+  );
+}
