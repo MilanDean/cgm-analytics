@@ -157,7 +157,7 @@ export default function Analysis(): JSX.Element {
           </div>
         </div>
       </div>
-      <div className="mt-8">{renderGraphs()}</div>
+      <div className="mt-2 flex">{renderGraphs()}</div>
     </div>
   );
 }
