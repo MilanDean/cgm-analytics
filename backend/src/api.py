@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -49,7 +49,8 @@ async def get_analysis_data():
     if "analysis_data" not in data_store:
         raise HTTPException(status_code=404, detail="Analysis data not available")
 
-    return data_store["analysis_data"]
+    # Limit the amount of data loaded into the site to bypass lazy loading
+    return data_store["analysis_data"][0:200]
 
 
 @app.get("/api/graph/{graph_id}")
