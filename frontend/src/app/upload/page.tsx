@@ -21,6 +21,8 @@ export default function Upload() {
     const formData = new FormData();
     formData.append('file', file, file.name);
 
+    window.filename = file.name;
+
     try {
       // Send the file to the FastAPI backend for processing
       const response = await axios.post('http://127.0.0.1:8000/api/analysis', formData, {

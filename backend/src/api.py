@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+
+from cryptography.fernet import Fernet
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -26,6 +28,12 @@ app.add_middleware(
 data_store = {}
 graph_store = {}
 
+# Getting our encryption key
+encryption_key_str = os.getenv("ENCRYPTION_KEY")
+stored_encryption_key = encryption_key_str.encode()
+
+fernet = Fernet(stored_encryption_key)
+
 @app.get("/")
 async def root():
     # 501 error is the default `Not Implemented` status code
@@ -37,20 +45,28 @@ async def process_csv_file(file: UploadFile):
     try:
         df = pd.read_csv(file.file)
         records = df.to_dict(orient="records")
-        data_store['analysis_data'] = records
 
-        return {"message": "Success"}
+        encrypted_records = [fernet.encrypt(str(record).encode()) for record in records]
+        data_store[file.filename] = encrypted_records
+
+        return {"message": "Success", "file": file.filename}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/analysis")
-async def get_analysis_data():
-    if "analysis_data" not in data_store:
+@app.get("/api/analysis/{filename}")
+async def get_analysis_data(filename: str):
+
+    print(f"Datasets stored: {data_store.keys()}")
+    if filename not in data_store:
         raise HTTPException(status_code=404, detail="Analysis data not available")
+    
+    # Decrypt the encrypted records using the encryption key
+    decrypted_records = [fernet.decrypt(record).decode() for record in data_store[filename]]
+    decrypted_data = [eval(record) for record in decrypted_records]
 
     # Limit the amount of data loaded into the site to bypass lazy loading
-    return data_store["analysis_data"][0:200]
+    return decrypted_data[0:200]
 
 
 @app.get("/api/graph/{graph_id}")
@@ -63,11 +79,14 @@ async def get_graph(graph_id: str):
 
 
 @app.post("/api/generate_graph")
-async def generate_graph():
-    if "analysis_data" not in data_store:
+async def generate_graph(filename: str = Query(...)):
+    print(f"Loading filename: {filename} from data store to generate graphs.")
+    if filename not in data_store:
         raise HTTPException(status_code=404, detail="Analysis data not available")
 
-    df = pd.DataFrame(data_store["analysis_data"])
+    decrypted_records = [fernet.decrypt(record).decode() for record in data_store[filename]]
+    decrypted_data = [eval(record) for record in decrypted_records]
+    df = pd.DataFrame(decrypted_data)
 
     # Generate graphs based on your requirements
     graph1 = generate_graph_1(df)

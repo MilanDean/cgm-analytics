@@ -39,11 +39,16 @@ export default function Analysis(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
 
+  // Retrieving the filename stored at /upload local storage
+  const filename = window.filename || '';
+
+  console.log("Loading the filename on the /analsis page:", filename)
+
   const fetchData = (): void => {
     setIsLoading(true);
 
     axios
-      .get<RowData[]>('http://127.0.0.1:8000/api/analysis')
+      .get<RowData[]>(`http://127.0.0.1:8000/api/analysis/${encodeURIComponent(filename)}`)
       .then((response) => {
         setData(response.data);
         checkDataAvailability(response.data);
@@ -53,7 +58,7 @@ export default function Analysis(): JSX.Element {
       });
 
     axios
-      .post<{ graph_ids: string[] }>('http://127.0.0.1:8000/api/generate_graph')
+      .post<{ graph_ids: string[] }>(`http://127.0.0.1:8000/api/generate_graph?filename=${encodeURIComponent(filename)}`)
       .then((graphResponse) => {
         setGraphIds(graphResponse.data.graph_ids);
       })
