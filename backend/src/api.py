@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from models import GlucoseData, ProcessedDataResponse
+from .models import GlucoseData, ProcessedDataResponse
 
 import io
 import json
