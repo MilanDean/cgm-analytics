@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, Query
+from fastapi import FastAPI, HTTPException, UploadFile, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -8,7 +8,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from models import GlucoseData, ProcessedDataResponse
+
 import io
+import json
 import os
 import uuid
 
@@ -40,18 +43,31 @@ async def root():
     raise HTTPException(status_code=501, detail="Not implemented")
 
 
-@app.post("/api/analysis")
+@app.post("/api/analysis", response_model=ProcessedDataResponse)
 async def process_csv_file(file: UploadFile):
     try:
         df = pd.read_csv(file.file)
+        df = df.head(-1)
+
         records = df.to_dict(orient="records")
 
-        encrypted_records = [fernet.encrypt(str(record).encode()) for record in records]
+        # Validate each record using the GlucoseData model
+        validated_records = []
+        for record in records:
+            validated_record = GlucoseData.parse_obj(record)
+            validated_records.append(validated_record)
+
+        json_records = [json.dumps(record.dict()) for record in validated_records]
+
+        # Encrypt the JSON records and store them
+        encrypted_records = [fernet.encrypt(record.encode()) for record in json_records]
         data_store[file.filename] = encrypted_records
 
-        return {"message": "Success", "file": file.filename}
+        return ProcessedDataResponse(message="Success", file=file.filename)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.get("/api/analysis/{filename}")
@@ -63,7 +79,15 @@ async def get_analysis_data(filename: str):
     
     # Decrypt the encrypted records using the encryption key
     decrypted_records = [fernet.decrypt(record).decode() for record in data_store[filename]]
-    decrypted_data = [eval(record) for record in decrypted_records]
+    
+    decrypted_data = []
+    for record in decrypted_records:
+        record = record.replace("'", '"')
+        try:
+            parsed_record = json.loads(record)
+            decrypted_data.append(parsed_record)
+        except json.JSONDecodeError as e:
+            print(f"JSON DECODE ERROR: {e}")
 
     # Limit the amount of data loaded into the site to bypass lazy loading
     return decrypted_data[0:200]
@@ -85,7 +109,15 @@ async def generate_graph(filename: str = Query(...)):
         raise HTTPException(status_code=404, detail="Analysis data not available")
 
     decrypted_records = [fernet.decrypt(record).decode() for record in data_store[filename]]
-    decrypted_data = [eval(record) for record in decrypted_records]
+    decrypted_data = []
+    for record in decrypted_records:
+        record = record.replace("'", '"')
+        try:
+            parsed_record = json.loads(record)
+            decrypted_data.append(parsed_record)
+        except json.JSONDecodeError as e:
+            break
+
     df = pd.DataFrame(decrypted_data)
 
     # Generate graphs based on your requirements
