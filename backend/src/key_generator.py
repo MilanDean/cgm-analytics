@@ -1,5 +1,4 @@
 from cryptography.fernet import Fernet
-import os
 
 # Generate a random encryption key and decode to str to be stored
 print("Generating encryption key...")
