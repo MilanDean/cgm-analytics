@@ -6,5 +6,4 @@ print("Generating encryption key...")
 encryption_key = Fernet.generate_key()
 encryption_key_str = encryption_key.decode()
 
-os.environ["ENCRYPTION_KEY"] = encryption_key_str
 print("Successfully stored AES-256 encryption key.")
