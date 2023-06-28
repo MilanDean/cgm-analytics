@@ -1,5 +1,6 @@
 import pydantic
 
+
 class GlucoseData(pydantic.BaseModel):
     Time: str
     BG: float
@@ -12,6 +13,5 @@ class GlucoseData(pydantic.BaseModel):
 
 
 class ProcessedDataResponse(pydantic.BaseModel):
-
     message: str
     file: str

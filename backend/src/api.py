@@ -37,6 +37,7 @@ stored_encryption_key = encryption_key_str.encode()
 
 fernet = Fernet(stored_encryption_key)
 
+
 @app.get("/")
 async def root():
     # 501 error is the default `Not Implemented` status code
@@ -69,17 +70,17 @@ async def process_csv_file(file: UploadFile):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 @app.get("/api/analysis/{filename}")
 async def get_analysis_data(filename: str):
-
     print(f"Datasets stored: {data_store.keys()}")
     if filename not in data_store:
         raise HTTPException(status_code=404, detail="Analysis data not available")
-    
+
     # Decrypt the encrypted records using the encryption key
-    decrypted_records = [fernet.decrypt(record).decode() for record in data_store[filename]]
-    
+    decrypted_records = [
+        fernet.decrypt(record).decode() for record in data_store[filename]
+    ]
+
     decrypted_data = []
     for record in decrypted_records:
         record = record.replace("'", '"')
@@ -108,7 +109,9 @@ async def generate_graph(filename: str = Query(...)):
     if filename not in data_store:
         raise HTTPException(status_code=404, detail="Analysis data not available")
 
-    decrypted_records = [fernet.decrypt(record).decode() for record in data_store[filename]]
+    decrypted_records = [
+        fernet.decrypt(record).decode() for record in data_store[filename]
+    ]
     decrypted_data = []
     for record in decrypted_records:
         record = record.replace("'", '"')
@@ -126,12 +129,12 @@ async def generate_graph(filename: str = Query(...)):
 
     # Save the graph images to byte buffers
     image_buffer1 = io.BytesIO()
-    graph1.savefig(image_buffer1, format='jpeg')
+    graph1.savefig(image_buffer1, format="jpeg")
     image_buffer1.seek(0)
     image_bytes1 = image_buffer1.getvalue()
 
     image_buffer2 = io.BytesIO()
-    graph2.savefig(image_buffer2, format='jpeg')
+    graph2.savefig(image_buffer2, format="jpeg")
     image_buffer2.seek(0)
     image_bytes2 = image_buffer2.getvalue()
 
@@ -160,10 +163,10 @@ async def generate_graph(filename: str = Query(...)):
 
 def generate_graph_1(df):
     # Generate the first graph - Line Graph
-    fig,ax = plt.subplots(figsize=(10,6))
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    sns.lineplot(data=df, x='work_year', y='salary_in_usd', ax=ax, color='black')
-    plt.locator_params(axis='x', nbins=4)
+    sns.lineplot(data=df, x="work_year", y="salary_in_usd", ax=ax, color="black")
+    plt.locator_params(axis="x", nbins=4)
     ax.set_title("Data Science Salary by Year")
     ax.set_xlabel("Year")
     ax.set_ylabel("Salary (USD)")
@@ -173,9 +176,15 @@ def generate_graph_1(df):
 
 def generate_graph_2(df):
     # Generate the second graph - Bar Graph
-    fig,ax = plt.subplots(figsize=(10,6))
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    sns.barplot(data=df.sort_values(by="salary_in_usd", ascending=False).head(10), x='job_title', y='salary_in_usd', ax=ax, palette='coolwarm')
+    sns.barplot(
+        data=df.sort_values(by="salary_in_usd", ascending=False).head(10),
+        x="job_title",
+        y="salary_in_usd",
+        ax=ax,
+        palette="coolwarm",
+    )
     ax.set_title("Top 10 Salaries and Role")
     ax.set_xlabel("Role")
     ax.set_xticklabels(labels=ax.get_xticklabels(), rotation=45, ha="right")
