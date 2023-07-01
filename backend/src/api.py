@@ -1,3 +1,5 @@
+from botocore.exceptions import ClientError
+
 from fastapi import FastAPI, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -10,12 +12,53 @@ import seaborn as sns
 
 from .models import GlucoseData, ProcessedDataResponse
 
+import boto3
 import io
 import json
 import os
 import uuid
 
+
+s3 = boto3.client('s3', region_name='us-east-1')
+
 app = FastAPI(docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
+
+def create_bucket(bucket_name):
+    try:
+        response = s3.create_bucket(
+            Bucket=bucket_name,
+        )
+        print(f"Bucket {bucket_name} created successfully.")
+        return response
+    except ClientError as e:
+        print(e)
+        return None
+
+bucket_name = 'cgm-analytics-ucb'
+create_bucket(bucket_name)
+
+
+def upload_file_to_s3(bucket_name, file_name, file_data):
+    try:
+        s3.upload_fileobj(file_data, bucket_name, file_name)
+        print(f"File {file_name} uploaded successfully to bucket {bucket_name}")
+    except ClientError as e:
+        print(e)
+        return None
+
+
+@app.post("/api/analysis", response_model=ProcessedDataResponse)
+async def process_csv_file(file: UploadFile):
+    try:
+        # Upload CSV to S3
+        file.file.seek(0)  # Move file pointer to the start of the file.
+        upload_file_to_s3(bucket_name, file.filename, file.file)
+
+        return ProcessedDataResponse(message="Success", file=file.filename)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Configure CORS
 app.add_middleware(
@@ -26,48 +69,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Not optimal, in-memory data storage solution for datasets. Should work for MVP,
-# but we dont want to rely on this long term
-data_store = {}
-graph_store = {}
-
-# Getting our encryption key
-encryption_key_str = os.getenv("ENCRYPTION_KEY")
-stored_encryption_key = encryption_key_str.encode()
-
-fernet = Fernet(stored_encryption_key)
-
 
 @app.get("/")
 async def root():
     # 501 error is the default `Not Implemented` status code
     raise HTTPException(status_code=501, detail="Not implemented")
-
-
-@app.post("/api/analysis", response_model=ProcessedDataResponse)
-async def process_csv_file(file: UploadFile):
-    try:
-        df = pd.read_csv(file.file)
-        df = df.head(-1)
-
-        records = df.to_dict(orient="records")
-
-        # Validate each record using the GlucoseData model
-        validated_records = []
-        for record in records:
-            validated_record = GlucoseData.parse_obj(record)
-            validated_records.append(validated_record)
-
-        json_records = [json.dumps(record.dict()) for record in validated_records]
-
-        # Encrypt the JSON records and store them
-        encrypted_records = [fernet.encrypt(record.encode()) for record in json_records]
-        data_store[file.filename] = encrypted_records
-
-        return ProcessedDataResponse(message="Success", file=file.filename)
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/analysis/{filename}")
