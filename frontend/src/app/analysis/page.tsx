@@ -38,6 +38,8 @@ export default function Analysis(): JSX.Element {
   const [isDataAvailable, setIsDataAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [linePlotUrl, setLinePlotUrl] = useState<string | null>(null);
+  const [histPlotUrl, setHistPlotUrl] = useState<string | null>(null);
 
   // Retrieving the filename stored at /upload local storage
   const filename = window.filename || '';
@@ -57,13 +59,14 @@ export default function Analysis(): JSX.Element {
         console.log(error);
       });
 
-    axios
-      .post<{ graph_ids: string[] }>(`http://127.0.0.1:8000/api/generate_graph?filename=${encodeURIComponent(filename)}`)
-      .then((graphResponse) => {
-        setGraphIds(graphResponse.data.graph_ids);
+      axios
+      .get<{ line_plot_url: string, hist_plot_url: string }>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
+      .then((response) => {
+          setLinePlotUrl(response.data.line_plot_url);
+          setHistPlotUrl(response.data.hist_plot_url);
       })
       .catch((error) => {
-        console.log(error);
+          console.log(error);
       });
   };
 
@@ -93,18 +96,39 @@ export default function Analysis(): JSX.Element {
   }, [elapsedTime]);
 
   const renderGraphs = (): JSX.Element[] => {
-    return graphIds.map((graphId) => (
-      <Image
-        key={graphId}
-        src={`http://127.0.0.1:8000/api/graph/${graphId}`}
-        alt={`Graph ${graphId}`}
-        className="dark:invert mx-3"
-        width={1200}
-        height={400}
-        priority
-      />
-    ));
-  };
+    let graphs: JSX.Element[] = [];
+
+    if (linePlotUrl) {
+        graphs.push(
+            <Image
+                key={'line-plot'}
+                src={linePlotUrl}
+                alt={`Line Plot`}
+                className="dark:invert mx-3"
+                width={1200}
+                height={400}
+                priority
+            />
+        );
+    }
+
+    if (histPlotUrl) {
+        graphs.push(
+            <Image
+                key={'histogram'}
+                src={histPlotUrl}
+                alt={`Histogram`}
+                className="dark:invert mx-3"
+                width={1200}
+                height={400}
+                priority
+            />
+        );
+    }
+
+    return graphs;
+};
+
 
   const columns = Object.keys(data[0] || {});
 
