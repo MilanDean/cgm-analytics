@@ -34,12 +34,10 @@ type RowData = { [key: string]: any };
 
 export default function Analysis(): JSX.Element {
   const [data, setData] = useState<RowData[]>([]);
-  const [graphIds, setGraphIds] = useState<string[]>([]);
   const [isDataAvailable, setIsDataAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [linePlotUrl, setLinePlotUrl] = useState<string | null>(null);
-  const [histPlotUrl, setHistPlotUrl] = useState<string | null>(null);
 
   // Retrieving the filename stored at /upload local storage
   const filename = window.filename || '';
@@ -60,10 +58,9 @@ export default function Analysis(): JSX.Element {
       });
 
       axios
-      .get<{ line_plot_url: string, hist_plot_url: string }>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
+      .get<{ line_plot_url: string}>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
       .then((response) => {
           setLinePlotUrl(response.data.line_plot_url);
-          setHistPlotUrl(response.data.hist_plot_url);
       })
       .catch((error) => {
           console.log(error);
@@ -86,7 +83,7 @@ export default function Analysis(): JSX.Element {
       fetchData();
       setElapsedTime((prevElapsedTime) => prevElapsedTime + 3000);
     }
-  }, 3000);
+  }, 2000);
 
   useEffect(() => {
     if (elapsedTime >= 10000) {
@@ -105,22 +102,8 @@ export default function Analysis(): JSX.Element {
                 src={linePlotUrl}
                 alt={`Line Plot`}
                 className="dark:invert mx-3"
-                width={1200}
-                height={400}
-                priority
-            />
-        );
-    }
-
-    if (histPlotUrl) {
-        graphs.push(
-            <Image
-                key={'histogram'}
-                src={histPlotUrl}
-                alt={`Histogram`}
-                className="dark:invert mx-3"
-                width={1200}
-                height={400}
+                width={1400}
+                height={300}
                 priority
             />
         );
@@ -143,7 +126,7 @@ export default function Analysis(): JSX.Element {
             </div>
           </header>
           <div className="flex md:table-fixed overflow-x-auto h-96 overflow-y-auto py-2">
-            <table className="p-5 border-separate border-spacing-0">
+            <table className="p-5 border-separate border-spacing-0 w-full">
               <thead>
                 <tr>
                   {columns.map((column) => (
