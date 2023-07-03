@@ -12,12 +12,11 @@ import seaborn as sns
 from .models import ProcessedDataResponse
 
 import boto3
+import io
 import os
-import time
 
 
 s3 = boto3.client("s3", region_name="us-east-1")
-glue = boto3.client("glue", region_name="us-east-1")
 app = FastAPI(docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
 conn = connect(
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
@@ -40,7 +39,7 @@ def generate_plot(df, x_column=None, y_column=None, filename=None):
     font_path = font_manager.findfont(font_manager.FontProperties(family="Arial"))
     plt.rcParams["font.family"] = font_manager.get_font(font_path).family_name
 
-    df["timestamp"] = pd.to_datetime(df["time"])
+    df["timestamp"] = pd.to_datetime(df["Time"])
 
     plt.figure(figsize=(15, 5))
     sns.lineplot(data=df, x=x_column, y=y_column, legend="brief", label=y_column)
@@ -85,23 +84,6 @@ def upload_file_to_s3(bucket_name, file_name, file_data):
         return False
 
 
-def check_table_exists(database: str, table: str):
-    """Check if a table exists in a specified Glue database"""
-    try:
-        response = glue.get_table(DatabaseName=database, Name=table)
-        return True
-    except glue.exceptions.EntityNotFoundException:
-        return False
-
-
-def check_crawler_status(crawler_name):
-    glue = boto3.client("glue", region_name="us-east-1")
-    response = glue.get_crawler(Name=crawler_name)
-    status = response["Crawler"]["State"]
-
-    return status
-
-
 @app.get("/")
 async def root():
     # 501 error is the default `Not Implemented` status code
@@ -112,6 +94,7 @@ async def root():
 async def process_csv_file(file: UploadFile):
     try:
         s3.head_object(Bucket=bucket_name, Key=file.filename)
+        return ProcessedDataResponse(message="Success: File already present.", file=file.filename)
 
     except ClientError as e:
         # If the file doesn't exist, upload it
@@ -119,25 +102,12 @@ async def process_csv_file(file: UploadFile):
             print("Data not in S3 bucket - Uploading...")
             file.file.seek(0)
             upload_file_to_s3(bucket_name, file.filename, file.file)
+            return ProcessedDataResponse(message="Succes: File uploaded.", file=file.filename)
         else:
             raise
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-    finally:
-        # Refresh Athena table to run AWS Glue crawler only if the table doesn't exist
-        counter = 0
-        if not check_table_exists("cgm-source-database", "cgm_analytics_ucb"):
-            glue.start_crawler(Name="cgm-analytics-crawler")
-            while (
-                check_crawler_status("cgm-analytics-crawler") != "READY" or counter < 20
-            ):
-                print("Waiting for crawler to finish determining data schema...")
-                counter += 1
-                time.sleep(5)
-
-        return ProcessedDataResponse(message="Success", file=file.filename)
 
 
 def check_if_file_exists(bucket: str, key: str):
@@ -180,7 +150,7 @@ async def get_csv_file(file_name: str):
 async def get_visualization(filename: str):
     s3_client = boto3.client("s3", region_name="us-east-1")
 
-    # Check if the file exists in S3
+    # Check if the image exists in S3
     try:
         s3_client.head_object(Bucket=bucket_name, Key=f"{filename}_line_plot.png")
         line_plot_url = s3_client.generate_presigned_url(
@@ -188,18 +158,11 @@ async def get_visualization(filename: str):
             Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.png"},
             ExpiresIn=3600,
         )
-    except ClientError as e:
-        # File does not exist, run the query and generate the graph
-        query = """
-                SELECT time, CGM 
-                FROM "cgm-source-database"."cgm_analytics_ucb"
-                """
-        cursor = conn.cursor()
-        cursor.execute(query)
-        df = cursor.fetchall()
-
-        columns = [desc[0] for desc in cursor.description]
-        df = pd.DataFrame(df, columns=columns)
+    except ClientError:
+        # Need to get data from S3 and then read the data from the object Body before
+        # converting to pandas dataframe
+        data = s3_client.get_object(Bucket=bucket_name, Key=f"{filename}")
+        df = pd.read_csv(io.BytesIO(data["Body"].read()))
 
         generate_plot(df, "timestamp", "CGM", "line_plot.png")
         upload_file_to_s3(bucket_name, f"{filename}_line_plot.png", "line_plot.png")
