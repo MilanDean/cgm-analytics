@@ -109,18 +109,21 @@ async def root():
 @app.post("/api/analysis", response_model=ProcessedDataResponse)
 async def process_csv_file(file: UploadFile):
     try:
-        # Check if file already exists in S3
-        try:
-            s3.head_object(Bucket=bucket_name, Key=file.filename)
-            return ProcessedDataResponse(message="File already exists", file=file.filename)
-        except ClientError as e:
-            if e.response['Error']['Code'] != '404':
-                raise
+        s3.head_object(Bucket=bucket_name, Key=file.filename)
 
-        # Upload CSV to S3
-        file.file.seek(0)
-        upload_file_to_s3(bucket_name, file.filename, file.file)
+    except ClientError as e:
+        # If the file doesn't exist, upload it
+        if e.response['Error']['Code'] == '404':
+            print("Data not in S3 bucket - Uploading...")
+            file.file.seek(0)
+            upload_file_to_s3(bucket_name, file.filename, file.file)
+        else:
+            raise
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
         # Refresh Athena table to run AWS Glue crawler only if the table doesn't exist
         counter = 0
         if not check_table_exists("cgm-source-database", "cgm_analytics_ucb"):
@@ -132,8 +135,6 @@ async def process_csv_file(file: UploadFile):
 
         return ProcessedDataResponse(message="Success", file=file.filename)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 def check_if_file_exists(bucket: str, key: str):
