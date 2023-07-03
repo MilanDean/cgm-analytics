@@ -43,7 +43,7 @@ def generate_plot(df, x_column=None, y_column=None, filename=None):
 
     plt.figure(figsize=(15, 5))
     sns.lineplot(data=df, x=x_column, y=y_column, legend="brief", label=y_column)
-    plt.title("Raw CGM Data")
+    plt.title(f"Raw {y_column} Data")
     plt.tight_layout()
 
     plt.savefig(filename)
