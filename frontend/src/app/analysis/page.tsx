@@ -52,18 +52,18 @@ export default function Analysis(): JSX.Element {
       .then((response) => {
         setData(response.data);
         checkDataAvailability(response.data);
+
+        axios
+          .get<{ line_plot_url: string}>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
+          .then((response) => {
+              setLinePlotUrl(response.data.line_plot_url);
+          })
+          .catch((error) => {
+              console.log(error);
+          });
       })
       .catch((error) => {
         console.log(error);
-      });
-
-      axios
-      .get<{ line_plot_url: string}>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
-      .then((response) => {
-          setLinePlotUrl(response.data.line_plot_url);
-      })
-      .catch((error) => {
-          console.log(error);
       });
   };
 

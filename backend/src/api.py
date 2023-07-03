@@ -63,13 +63,24 @@ def create_bucket(bucket_name):
 
 def upload_file_to_s3(bucket_name, file_name, file_data):
     try:
-        with open(file_data, "rb") as file_obj:
-            s3.upload_fileobj(file_obj, bucket_name, file_name)
-            print(f"File {file_name} uploaded successfully to bucket {bucket_name}")
+        # Check if file_data is a path (str) or a file-like object
+        if isinstance(file_data, str):
+            # It's a path, so open the file
+            with open(file_data, 'rb') as f:
+                s3.upload_fileobj(f, bucket_name, file_name)
+        else:
+            # It's a file-like object, so ensure we're at the start before uploading
+            file_data.seek(0)
+            s3.upload_fileobj(file_data, bucket_name, file_name)
+        print(f"File {file_name} uploaded successfully to bucket {bucket_name}")
+        return True
     except ClientError as e:
-        print(e)
-        return None
-    
+        print(f"An error occurred while uploading {file_name} to {bucket_name}. Error: {e}")
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return False
+
 
 def check_table_exists(database: str, table: str):
     """Check if a table exists in a specified Glue database"""
@@ -80,15 +91,13 @@ def check_table_exists(database: str, table: str):
         return False
     
 
-def check_crawler_status(crawler_name: str):
-    """Check if a Glue Crawler has completed its run"""
-    while True:
-        print("Waiting for AWS crawler to finish data schema preparation...")
-        metrics = glue.get_crawler_metrics(CrawlerNameList=[crawler_name])
-        if metrics['CrawlerMetricsList'][0]['StillEstimating'] == False:
-            break
-        time.sleep(10)
-    return
+def check_crawler_status(crawler_name):
+
+    glue = boto3.client('glue', region_name='us-east-1')
+    response = glue.get_crawler(Name=crawler_name)
+    status = response['Crawler']['State']
+
+    return status
 
 
 @app.get("/")
@@ -113,9 +122,13 @@ async def process_csv_file(file: UploadFile):
         upload_file_to_s3(bucket_name, file.filename, file.file)
 
         # Refresh Athena table to run AWS Glue crawler only if the table doesn't exist
+        counter = 0
         if not check_table_exists("cgm-source-database", "cgm_analytics_ucb"):
             glue.start_crawler(Name='cgm-analytics-crawler')
-            check_crawler_status('cgm-analytics-crawler')
+            while check_crawler_status('cgm-analytics-crawler') != 'READY' or counter < 20:
+                print("Waiting for crawler to finish determining data schema...")
+                counter += 1
+                time.sleep(5)
 
         return ProcessedDataResponse(message="Success", file=file.filename)
 
