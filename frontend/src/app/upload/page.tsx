@@ -1,20 +1,28 @@
 'use client';
-import { ChangeEvent, useState } from 'react';
+
+import { ChangeEvent, useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import axios from 'axios';
 import Image from 'next/image';
 import TopNav from '../components/TopNav';
+import UserAgreement from '../components/UserAgreement';
 
 export default function Upload() {
+  const [accepted, setAccepted] = useState(false);
+  const [open, setOpen] = useState(true);
   const [file, setFile] = useState<File | null>(null);
+  const [showButton, setShowButton] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    router.push('/analysis')
-
     if (!file) {
+      return;
+    }
+
+    if (!accepted) {
+      setOpen(true);
       return;
     }
 
@@ -31,16 +39,17 @@ export default function Upload() {
         },
       });
 
-      if (response.status === 200) {
+      if (response.status === 200 && accepted) {
         // Redirect to the analysis page to load the data we've just uploaded
-        console.log('Successfully sent payload to FastAPI.')
+        console.log('Successfully sent payload to FastAPI.');
+        router.push('/analysis');
       }
 
       console.log(response.data);
     } catch (error) {
       console.error(error);
     }
-  }
+  };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -51,15 +60,21 @@ export default function Upload() {
     } else {
       setFile(null);
     }
-  }
+  };
+
+  useEffect(() => {
+    // Check if the user has already accepted the agreement
+    if (accepted) {
+      setShowButton(true);
+    }
+  }, [accepted]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">
-
       <TopNav />
       <div className="flex flex-col items-center justify-center">
+        <UserAgreement isOpen={open} setOpen={setOpen} setAccepted={setAccepted} />
         <form className="w-full max-w-lg p-8 rounded-lg shadow-lg bg-transparent border-2 border-black" onSubmit={handleSubmit}>
-
           <div className="p-6 mb-4">
             <label htmlFor="fileInput" className="text-black font-bold">
               Select a file to upload:
@@ -72,19 +87,19 @@ export default function Upload() {
               onChange={handleFileChange}
             />
           </div>
-
           <div className='flex items-center justify-center py-3'>
-            <button
-              type="submit"
-              className="bg-black text-white px-4 py-2 scale-125 rounded hover:bg-blue-600"
-            >
-              Upload
-            </button>
+          {showButton && (
+              <button
+                type="submit"
+                className="bg-black text-white px-4 py-2 scale-125 rounded hover:bg-blue-600"
+                disabled={!accepted}
+              >
+                Upload
+              </button>
+            )}
           </div>
-
         </form>
       </div>
-
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
         <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify- dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
           <a
@@ -105,7 +120,6 @@ export default function Upload() {
           </a>
         </div>
       </div>
-
     </main>
-  )
+  );
 }
