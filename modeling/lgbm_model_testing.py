@@ -1,7 +1,10 @@
 import sklearn.preprocessing
 from sklearn.preprocessing import LabelEncoder
 from modeling_util import *
-from lightgbm import LGBMModel
+from lightgbm import LGBMModel, LGBMClassifier, cv
+from sklearn.feature_selection import RFECV
+from sklearn.base import clone
+from probatus.feature_elimination import ShapRFECV
 import pickle
 import warnings
 warnings.filterwarnings("ignore")
@@ -79,14 +82,14 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    train_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_train_set.csv')
-    test_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_val_set.csv') # I know it says test, but its val
+    train_df = pd.read_csv('../data/output/features/60minWindow_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv') # I know it says test, but its val
     #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
-    train_X = train_df.iloc[:,:-2]
+    train_X = train_df.iloc[:,:-5]
     train_Y = train_df.meal
-    test_X = test_df.iloc[:,:-2]
+    test_X = test_df.iloc[:,:-5]
     test_Y = test_df.meal
     # val_X = val_df.iloc[:,:-1]
     # val_Y = val_df.meal
@@ -106,7 +109,7 @@ if __name__ == '__main__':
     group_array = train_df.groupby(["subject"])["subject"].count().to_numpy()
     lgbm = LGBMModel(boosting_type = 'gbdt', objective='binary',
                      class_weight='balanced')
-    lgbm.fit(train_X, train_Y, group=group_array)
+    lgbm.fit(train_X, train_Y)#, group=group_array)
     test_probs = lgbm.predict(test_X)
 
     # estimate J index threshold
@@ -122,47 +125,115 @@ if __name__ == '__main__':
     baseline_results.append({'model': 'untuned_lgbm',
                              'accuracy': accuracy_score(test_Y, yPrime),
                              'roc_auc': roc_auc_score(test_Y, test_probs),
+                             'precision': precision_score(test_Y, yPrime),
+                             'recall': recall_score(test_Y, yPrime),
+                             'f1-score': f1_score(test_Y, yPrime),
+                             'j_index': optimal_threshold,
+                             'pr_auc': average_precision_score(test_Y, test_probs)
                              })
 
     #### Hyperparameter Tuned Models ####
     # Log Reg
-    sgkf = StratifiedGroupKFold(n_splits=5)
-    n_estimators = [int(x) for x in np.linspace(start=10, stop=100, num=10)]
+    # sgkf = StratifiedGroupKFold(n_splits=5)
+
+    # Create a list where train data indices are -1 and validation data indices are 0
+    combined_X = pd.concat([train_X, test_X]).reset_index(drop = True)
+    group_array = np.array(pd.concat([train_df, test_df]).subject)
+    combined_Y = pd.concat([train_Y, test_Y]).reset_index(drop = True)
+    split_index = [-1 if x in train_X.index else 0 for x in combined_X.index]
+    pds = PredefinedSplit(test_fold=split_index)
+
+    # SKLEARN RFE --- Reduce to only top features
+    selector = RFECV(estimator= LGBMClassifier(objective='binary', #boosting_type = 'gbdt'
+                     class_weight='balanced', metric='precision'), step=1, cv=pds, n_jobs=-1)
+    rfe_out = selector.fit(combined_X, combined_Y, groups=group_array)
+    rfe_combined_X = combined_X.iloc[:, rfe_out.support_]
+    rfe_train_X = train_X.iloc[:, rfe_out.support_]
+    rfe_test_X = test_X.iloc[:, rfe_out.support_]
+
+    n_estimators = [int(x) for x in np.linspace(start=10, stop=250, num=10)]
     max_depth = [int(x) for x in np.linspace(10, 100, num=10)]
     max_depth.append(None)
+    boosting_type = ['gbdt', 'rf', 'dart']
+    learning_rate = [0.001, 0.01, 0.1]
+    n_leaves = [6, 8, 12, 16, 20]
+    max_bin = [255, 510]
+    #fit_params = {'categorical_feature': [combined_X.columns.get_loc(col) for col in ['time_period',
+                                        #'time_period_before', 'time_period_after']]}
     # Use GridSearch
-    lgbm_clf = GridSearchCV(estimator= LGBMModel(boosting_type = 'gbdt', objective='binary',
-                     class_weight='balanced'),
+    lgbm_clf = GridSearchCV(estimator= LGBMClassifier(objective='binary', #boosting_type = 'gbdt'
+                     class_weight='balanced', metric='precision'),
                     param_grid={'n_estimators': n_estimators,
-                                'max_depth': max_depth}, n_jobs=-1, cv=sgkf, scoring='roc_auc')
+                                'max_depth': max_depth,
+                                'boosting_type': boosting_type,
+                                'learning_rate': learning_rate,
+                                'num_leaves': n_leaves,
+                                'max_bin': max_bin}, n_jobs=-1, cv= pds,#sgkf,
+                            scoring='precision')
+
     # Fit the model
-    lgbm_clf.fit(train_X, train_Y, groups=train_df.subject)
-    lgbmF_clf = LGBMModel(boosting_type = 'gbdt', objective='binary',
+    # lgbm_clf.fit(train_X, train_Y, groups=train_df.subject)
+    lgbm_clf.fit(rfe_combined_X, combined_Y, groups=group_array) #, **fit_params) # Combined
+    # Used to use LGBMModel
+    lgbmF_clf = LGBMClassifier(boosting_type = lgbm_clf.best_estimator_.boosting_type, objective='binary',
                      class_weight='balanced', n_estimators=lgbm_clf.best_estimator_.get_params()['n_estimators'],
                                    max_depth=lgbm_clf.best_estimator_.get_params()['max_depth'],
-                                   random_state=1)
+                                   num_leaves=lgbm_clf.best_estimator_.get_params()['num_leaves'],
+                                   max_bin=lgbm_clf.best_estimator_.get_params()['max_bin'],
+                                   learning_rate=lgbm_clf.best_estimator_.get_params()['learning_rate'],
+                                   random_state=1, n_jobs=-1, metric='precision')
 
-    lr_cv_scores_roc_auc = cross_val_score(estimator=lgbmF_clf, X=train_X, y=train_Y, groups=train_df.subject,
-                                   cv=sgkf, n_jobs=-1, scoring='roc_auc')
-    lr_cv_scores_accuracy = cross_val_score(estimator=lgbmF_clf, X=train_X, y=train_Y, groups=train_df.subject,
-                                   cv=sgkf, n_jobs=-1, scoring='accuracy')
-    lr_cv_scores_f1 = cross_val_score(estimator=lgbmF_clf, X=train_X, y=train_Y, groups=train_df.subject,
-                                   cv=sgkf, n_jobs=-1, scoring='f1_weighted')
-    lgbmF_clf.fit(train_X, train_Y)
-    test_probs = lgbmF_clf.predict(test_X)
-    optimal_threshold = j_index_threshold(test_Y, test_probs, lgbm=True)
-    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs]
+    # SKLEARN RFE --- Reduce to only top features
+    # selector = RFECV(clone(lgbmF_clf), step=1, cv=pds, n_jobs=-1)
+    # rfe_out = selector.fit(combined_X, combined_Y, groups=group_array)
+    # rfe_combined_X = combined_X.iloc[:, rfe_out.support_]
+    # rfe_train_X = train_X.iloc[:, rfe_out.support_]
+    # rfe_test_X = test_X.iloc[:, rfe_out.support_]
+
+    lr_cv_scores_roc_auc = cross_val_score(estimator=lgbmF_clf, X=rfe_combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, # sgkf,
+                                   n_jobs=-1, scoring='roc_auc')
+    lr_cv_scores_accuracy = cross_val_score(estimator=lgbmF_clf, X=rfe_combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, #sgkf,
+                                   n_jobs=-1, scoring='accuracy')
+    lr_cv_scores_f1 = cross_val_score(estimator=lgbmF_clf, X=rfe_combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, #sgkf,
+                                   n_jobs=-1, scoring='f1_weighted')
+    lr_cv_scores_pr = cross_val_score(estimator=lgbmF_clf, X=combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, #sgkf,
+                                   n_jobs=-1, scoring='average_precision')
+    lgbmF_clf.fit(rfe_train_X, train_Y)
+    test_probs = lgbmF_clf.predict_proba(rfe_test_X)
+    optimal_threshold = j_index_threshold(test_Y, test_probs[:,1], lgbm=True)
+    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs[:,1]]
     print(accuracy_score(test_Y, yPrime))
-    print(roc_auc_score(test_Y, test_probs))
+    print(roc_auc_score(test_Y, test_probs[:,1]))
     print(classification_report(test_Y, yPrime))
     baseline_results.append({'model': 'tuned_lgbm',
                              'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, test_probs)})
+                             'roc_auc': roc_auc_score(test_Y, test_probs[:,1]),
+                             'precision': precision_score(test_Y, yPrime),
+                             'recall': recall_score(test_Y, yPrime),
+                             'f1-score': f1_score(test_Y, yPrime),
+                             'j_index': optimal_threshold,
+                             'pr_auc': average_precision_score(test_Y, test_probs[:, 1]),
+                             'cross_val_accuracy': lr_cv_scores_accuracy[0],
+                             'cross_val_roc_auc': lr_cv_scores_roc_auc[0],
+                             'cross_val_f1': lr_cv_scores_f1[0],
+                             'cross_val_pr': lr_cv_scores_pr[0],
+                             })
 
     os.makedirs('../data/output/training/', exist_ok=True)
-    pd.DataFrame({'feature': train_X.columns,
-                  'importance': lgbmF_clf.feature_importances_[0]}).sort_values('importance').to_csv(
+
+    # Save top hyperparams
+    pd.DataFrame([lgbm_clf.best_params_]).to_csv('../data/output/training/lgbm_top_hyperparams.csv')
+
+    # Save top features
+    pd.DataFrame({'feature': rfe_train_X.columns,
+                  'importance': lgbmF_clf.feature_importances_}).sort_values('importance', ascending = False).to_csv(
         '../data/output/training/lgbm_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
+
+    # Confusion Matrix
     cm = confusion_matrix(test_Y, yPrime)
     ConfusionMatrixDisplay(cm).plot()
     plt.savefig('../data/output/training/lgbm_confMatrix_{}.png'.format(datetime.today().strftime('%Y%m%d')))
@@ -174,10 +245,10 @@ if __name__ == '__main__':
         datetime.today().strftime('%Y%m%d')), index = False)
 
     # Plot ROC Curve
-    train_probs = lgbmF_clf.predict(train_X)
-    optimal_threshold_train = j_index_threshold(train_Y, train_probs, lgbm=True)
-    yPrime_train = [0 if x < optimal_threshold else 1 for x in train_probs]
-    plot_roc_curves(train_Y, train_probs, test_Y, test_probs)
+    train_probs = lgbmF_clf.predict_proba(rfe_train_X)
+    optimal_threshold_train = j_index_threshold(train_Y, train_probs[:,1], lgbm=True)
+    yPrime_train = [0 if x < optimal_threshold else 1 for x in train_probs[:,1]]
+    plot_roc_curves(train_Y, train_probs[:,1], test_Y, test_probs[:,1])
 
     # Save results
     results = pd.DataFrame(baseline_results).sort_values('roc_auc', ascending=False)
@@ -200,5 +271,5 @@ if __name__ == '__main__':
         plt.legend()
         plt.xlabel('time')
         plt.ylabel('No Meal <---> Meal')
-        plt.savefig('../data/output/training/LogReg_Preditions_{}_{}.png'.format(subj,
+        plt.savefig('../data/output/training/lgbm_Preditions_{}_{}.png'.format(subj,
                                                                                  datetime.today().strftime('%Y%m%d')))

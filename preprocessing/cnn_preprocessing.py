@@ -59,12 +59,12 @@ def create_gaf(sub_df, subject, label):
 
 if __name__ == '__main__':
     all_subjects_featureset= []
-    file = '../data/output/synthetic_dataset_raw_wMeals/synthetic_cgm_timeseries_allData.csv'
+    file = '../data/output/synthetic_dataset_raw_wMeals/20230622_synthetic_T1DB_interpolated_dataset.csv'
     all_data = pd.read_csv(file)
     all_data['timestamp'] = pd.to_datetime(all_data.timestamp) # Make datetime type
 
     # Read in featureset
-    features = pd.read_csv('../data/output/features/synthetic_dataset_features.csv')
+    features = pd.read_csv('../data/output/features/synthetic_dataset_features_60minWindow_30minOverlap.csv')
     features.head()
 
     # empty list for storing features
@@ -106,6 +106,7 @@ if __name__ == '__main__':
         # all_features = pd.concat(featureset)
         # all_subjects_featureset.append(all_features)
     full_featureset = pd.concat(featureset)
-    full_featureset = full_featureset[full_featureset.n_samples == 30]
+    # full_featureset = full_featureset[full_featureset.n_samples == 30]
     os.makedirs('../data/output/features/', exist_ok=True)
-    full_featureset.to_csv('../data/output/features/synthetic_dataset_cnn_image_map.csv', index = False)
+    full_featureset.to_csv('../data/output/features/synthetic_dataset_cnn_image_map_60minWindow_30minOverlap.csv',
+                           index = False)

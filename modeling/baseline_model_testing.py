@@ -1,5 +1,7 @@
 import os
 
+import pandas as pd
+
 from modeling_util import *
 import pickle
 import warnings
@@ -83,9 +85,9 @@ if __name__ == '__main__':
     #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
-    train_X = train_df.iloc[:,:-2]
+    train_X = train_df.iloc[:,:-5]
     train_Y = train_df.meal
-    test_X = test_df.iloc[:,:-2]
+    test_X = test_df.iloc[:,:-5]
     test_Y = test_df.meal
     # val_X = val_df.iloc[:,:-1]
     # val_Y = val_df.meal
@@ -120,27 +122,47 @@ if __name__ == '__main__':
     baseline_results.append({'model': 'untuned_logReg',
                              'accuracy': accuracy_score(test_Y, yPrime),
                              'roc_auc': roc_auc_score(test_Y, test_probs[:,1]),
+                             'precision': precision_score(test_Y, yPrime),
+                             'recall': recall_score(test_Y, yPrime),
+                             'f1-score': f1_score(test_Y, yPrime),
+                             'j_index': optimal_threshold,
+                             'pr_auc': average_precision_score(test_Y, test_probs[:, 1]),
                              })
 
     #### Hyperparameter Tuned Models ####
     # Log Reg
-    group_array = np.array(train_df.subject)
-    sgkf = StratifiedGroupKFold(n_splits=5)
+    # group_array = np.array(train_df.subject)
+    # sgkf = StratifiedGroupKFold(n_splits=5)
+
+    # Create a list where train data indices are -1 and validation data indices are 0
+    combined_X = pd.concat([train_X, test_X]).reset_index(drop = True)
+    group_array = np.array(pd.concat([train_df, test_df]).subject)
+    combined_Y = pd.concat([train_Y, test_Y]).reset_index(drop = True)
+    split_index = [-1 if x in train_X.index else 0 for x in combined_X.index]
+    pds = PredefinedSplit(test_fold=split_index)
+
     # Use GridSearch
     lr_clf = GridSearchCV(estimator=LogisticRegression(random_state=1, penalty='l1',
                                                        solver='liblinear', class_weight='balanced'),
-                          param_grid={'C': np.logspace(-4, 4, 20)}, n_jobs=-1, cv=sgkf, scoring='roc_auc')
+                          param_grid={'C': np.logspace(-4, 4, 20)}, n_jobs=-1, cv=pds, scoring='average_precision') # cv = sgkf
     # Fit the model
-    lr_clf.fit(train_X, train_Y, groups=group_array)
+    # lr_clf.fit(train_X, train_Y, groups=group_array)
+    lr_clf.fit(combined_X, combined_Y, groups=group_array)
     lfF_clf = LogisticRegression(C=lr_clf.best_estimator_.get_params()['C'], random_state=1, penalty='l1',
-                                 solver='liblinear', class_weight=None)
+                                 solver='liblinear', class_weight='balanced')
 
-    lr_cv_scores_roc_auc = cross_val_score(estimator=lfF_clf, X=train_X, y=train_Y, groups=group_array,
-                                   cv=sgkf, n_jobs=-1, scoring='roc_auc')
-    lr_cv_scores_accuracy = cross_val_score(estimator=lfF_clf, X=train_X, y=train_Y, groups=group_array,
-                                   cv=sgkf, n_jobs=-1, scoring='accuracy')
-    lr_cv_scores_f1 = cross_val_score(estimator=lfF_clf, X=train_X, y=train_Y, groups=group_array,
-                                   cv=sgkf, n_jobs=-1, scoring='f1_weighted')
+    lr_cv_scores_roc_auc = cross_val_score(estimator=lfF_clf, X=combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, #sgkf
+                                   n_jobs=-1, scoring='roc_auc')
+    lr_cv_scores_accuracy = cross_val_score(estimator=lfF_clf, X=combined_X, y=combined_Y, groups=group_array,
+                                   cv=pds, #sgkf,
+                                   n_jobs=-1, scoring='accuracy')
+    lr_cv_scores_f1 = cross_val_score(estimator=lfF_clf, X=combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, #sgkf,
+                                   n_jobs=-1, scoring='f1_weighted')
+    lr_cv_scores_pr = cross_val_score(estimator=lfF_clf, X=combined_X, y=combined_Y, groups=group_array,
+                                   cv= pds, #sgkf,
+                                   n_jobs=-1, scoring='average_precision')
     lfF_clf.fit(train_X, train_Y)
     test_probs = lfF_clf.predict_proba(test_X)
     optimal_threshold = j_index_threshold(test_Y, test_probs)
@@ -150,12 +172,29 @@ if __name__ == '__main__':
     print(classification_report(test_Y, yPrime))
     baseline_results.append({'model': 'tuned_logReg',
                              'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, test_probs[:,1])})
+                             'roc_auc': roc_auc_score(test_Y, test_probs[:,1]),
+                             'precision': precision_score(test_Y, yPrime),
+                             'recall': recall_score(test_Y, yPrime),
+                             'f1-score': f1_score(test_Y, yPrime),
+                             'j_index': optimal_threshold,
+                             'pr_auc': average_precision_score(test_Y, test_probs[:, 1]),
+                             'cross_val_accuracy': lr_cv_scores_accuracy[0],
+                             'cross_val_roc_auc': lr_cv_scores_roc_auc[0],
+                             'cross_val_f1': lr_cv_scores_f1[0],
+                             'cross_val_pr': lr_cv_scores_pr[0],
+                             })
 
     os.makedirs('../data/output/training/', exist_ok=True)
+
+    # Save top hyperparams
+    pd.DataFrame([lr_clf.best_params_]).to_csv('../data/output/training/logreg_top_hyperparams.csv')
+
+    # Save top features
     pd.DataFrame({'feature': train_X.columns,
-                  'weight': lfF_clf.coef_[0]}).sort_values('weight').to_csv(
+                  'weight': lfF_clf.coef_[0]}).sort_values('weight', ascending = False).to_csv(
         '../data/output/training/LogReg_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
+
+    # Confusion Matrix
     cm = confusion_matrix(test_Y, yPrime)
     ConfusionMatrixDisplay(cm).plot()
     plt.savefig('../data/output/training/LogReg_confMat_{}.png'.format(datetime.today().strftime('%Y%m%d')))
@@ -173,7 +212,7 @@ if __name__ == '__main__':
     plot_roc_curves(train_Y, train_probs, test_Y, test_probs)
 
     # Save results
-    results = pd.DataFrame(baseline_results).sort_values('roc_auc', ascending=False)
+    results = pd.DataFrame(baseline_results).sort_values('precision', ascending=False)
     results.to_csv('../data/output/training/baseline_logreg_results.csv', index = False)
     print(results)
 
@@ -195,3 +234,4 @@ if __name__ == '__main__':
         plt.ylabel('No Meal <---> Meal')
         plt.savefig('../data/output/training/LogReg_Preditions_{}_{}.png'.format(subj,
                                                                                  datetime.today().strftime('%Y%m%d')))
+

@@ -415,7 +415,7 @@ if __name__ == '__main__':
         while start_time <= df.timestamp.iloc[-1]:
             try:
                 # expecting 30 samples per grouping
-                sub_df = df[(df.timestamp >= start_time) & (df.timestamp < (start_time + pd.to_timedelta(30, 'min')))]
+                sub_df = df[(df.timestamp >= start_time) & (df.timestamp < (start_time + pd.to_timedelta(60, 'min')))]
                 sub_df = sub_df.sort_values('timestamp')
                 features = derive_cgm_features(sub_df)
                 start_block = sub_df.timestamp.iloc[0]
@@ -424,7 +424,8 @@ if __name__ == '__main__':
                                            'start_block': start_block,
                                            'end_block': end_block,
                                            'n_samples': len(sub_df),
-                                           'label(meal)': np.where(sub_df.CHO.sum() > 0, 1, 0)}])
+                                           'label(meal)': np.where(sub_df.CHO.sum() > 0, 1, 0),
+                                          'CHO_total': sub_df.CHO.max()}])
                 combined_features = pd.concat([meta_info, features], axis=1)
                 # if len(combined_features) == 0:
                 #     print('s')
@@ -439,4 +440,4 @@ if __name__ == '__main__':
     full_featureset = pd.concat(all_subjects_featureset)
     full_featureset = full_featureset[full_featureset.n_samples == 60]
     os.makedirs('../data/output/features/', exist_ok=True)
-    full_featureset.to_csv('../data/output/features/synthetic_dataset_features.csv', index = False)
+    full_featureset.to_csv('../data/output/features/synthetic_dataset_features_20230630.csv', index = False)
