@@ -49,7 +49,7 @@ export default function Analysis(): JSX.Element {
     setIsLoading(true);
   
     axios
-      .get<RowData[]>(`https://274e7np7u4.execute-api.us-east-1.amazonaws.com/api/analysis/${encodeURIComponent(filename)}`)
+      .get<RowData[]>(`http://cgm-backend.us-east-1.elasticbeanstalk.com/api/analysis/${encodeURIComponent(filename)}`)
       .then((response) => {
         setData(response.data);
         checkDataAvailability(response.data);
