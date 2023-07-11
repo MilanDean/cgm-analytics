@@ -33,7 +33,7 @@ export default function Upload() {
 
     try {
       // Send the file to the FastAPI backend for processing
-      const response = await axios.post('http://127.0.0.1:8000/api/analysis', formData, {
+      const response = await axios.post('http://cgm-backend.us-east-1.elasticbeanstalk.com/api/analysis', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -71,6 +71,9 @@ export default function Upload() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">
+      <head>
+        <title>NutriNet - Upload</title>/
+      </head>
       <TopNav />
       <div className="flex flex-col items-center justify-center">
         <UserAgreement isOpen={open} setOpen={setOpen} setAccepted={setAccepted} />

@@ -49,13 +49,13 @@ export default function Analysis(): JSX.Element {
     setIsLoading(true);
   
     axios
-      .get<RowData[]>(`http://127.0.0.1:8000/api/analysis/${encodeURIComponent(filename)}`)
+      .get<RowData[]>(`http://cgm-backend.us-east-1.elasticbeanstalk.com/api/analysis/${encodeURIComponent(filename)}`)
       .then((response) => {
         setData(response.data);
         checkDataAvailability(response.data);
   
         axios
-          .get<{ line_plot_url: string}>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
+          .get<{ line_plot_url: string}>(`http://cgm-backend.us-east-1.elasticbeanstalk.com/api/visualization/${encodeURIComponent(filename)}`)
           .then((response) => {
               setLinePlotUrl(response.data.line_plot_url);
           })
@@ -122,6 +122,9 @@ export default function Analysis(): JSX.Element {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
+      <head>
+        <title>NutriNet - Analysis</title>/
+      </head>
       <TopNav />
       <div className="mt-8 flow-root">
         <div className="-mx-4 -my-2 sm:-mx-6 lg:-mx-8 border-2 border-black justify-center items-center">
