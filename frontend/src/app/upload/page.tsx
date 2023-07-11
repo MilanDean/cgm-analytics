@@ -29,7 +29,7 @@ export default function Upload() {
     const formData = new FormData();
     formData.append('file', file, file.name);
 
-    window.filename = file.name;
+    localStorage.setItem('uploadedFilename', file.name);
 
     try {
       // Send the file to the FastAPI backend for processing
