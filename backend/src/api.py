@@ -4,8 +4,6 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pyathena import connect
 
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as font_manager
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as py
@@ -40,7 +38,6 @@ def generate_plot(df, x_column=None, y_column=None, filename=None):
 
     df["timestamp"] = pd.to_datetime(df["Time"])
 
-    plt.figure(figsize=(15, 5))
     fig = go.Figure(data=go.Scatter(x=df[x_column], y=df[y_column]))
     fig.update_layout(
         autosize=True,

@@ -1,59 +1,27 @@
+import React from 'react';
+import Link from 'next/link';
 
-export default function TopNav() {
-    
-    return (
-        <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-3 lg:text-left">
-            <a
-                href="/"
-                className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-                target=""
-                rel="noopener noreferrer"
-            >
-                <h2 className={`mb-3 text-2xl font-semibold`}>
-                Home{' '}
-                <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-                    -&gt;
-                </span>
-                </h2>
-                <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-                Navigate back to the Home page.
-                </p>
-            </a>
-
-            <a
-                href="/team"
-                className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-                target=""
-                rel="noopener noreferrer"
-            >
-                <h2 className={`mb-3 text-2xl font-semibold`}>
-                Team{' '}
-                <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-                    -&gt;
-                </span>
-                </h2>
-                <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-                Meet the the people behind the insights.
-                </p>
-            </a>
-
-            <a
-                href="/upload"
-                className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-                target=""
-                rel="noopener noreferrer"
-            >
-                <h2 className={`mb-3 text-2xl font-semibold`}>
-                Upload{' '}
-                <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-                    -&gt;
-                </span>
-                </h2>
-                <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-                Upload data to determine what food was consumed during CGM.
-                </p>
-            </a>
-            
+const TopNav: React.FC = () => (
+  <header className="text-gray-600 body-font w-full">
+    <div className="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
+      <Link href="/">
+        <div className="flex title-font font-medium items-center text-gray-900 mb-4 md:mb-0">
+          <span className="ml-3 text-xl">CGM Analytics</span>
         </div>
-    )
-}
+      </Link>
+      <nav className="md:ml-auto flex flex-wrap px-4 sm:px-6 lg:px-8">
+        <Link href="/upload">
+          <span className="mr-5 hover:text-gray-900">Upload</span>
+        </Link>
+        <Link href="/analysis">
+          <span className="mr-5 hover:text-gray-900">Analysis</span>
+        </Link>
+        <Link href="/team">
+          <span className="mr-5 hover:text-gray-900">Team</span>
+        </Link>
+      </nav>
+    </div>
+  </header>
+);
+
+export default TopNav;

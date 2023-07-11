@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import Image from 'next/image';
 import TopNav from '../components/TopNav';
 
 function useInterval(callback: () => void, delay: number | null): void {
@@ -40,19 +39,21 @@ export default function Analysis(): JSX.Element {
   const [linePlotUrl, setLinePlotUrl] = useState<string | null>(null);
 
   // Retrieving the filename stored at /upload local storage
-  const filename = window.filename || '';
+  // Get the filename from local storage
+  let filename: string;
+  if (typeof window !== 'undefined') {
+      filename = window.localStorage.getItem('uploadedFilename') || "";
+  }
 
-  console.log("Loading the filename on the /analsis page:", filename)
-
-  const fetchData = (): void => {
+  const fetchData = useCallback(() => {
     setIsLoading(true);
-
+  
     axios
       .get<RowData[]>(`http://127.0.0.1:8000/api/analysis/${encodeURIComponent(filename)}`)
       .then((response) => {
         setData(response.data);
         checkDataAvailability(response.data);
-
+  
         axios
           .get<{ line_plot_url: string}>(`http://127.0.0.1:8000/api/visualization/${encodeURIComponent(filename)}`)
           .then((response) => {
@@ -65,7 +66,12 @@ export default function Analysis(): JSX.Element {
       .catch((error) => {
         console.log(error);
       });
-  };
+  }, []);
+  
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
 
   const checkDataAvailability = (responseData: RowData[]): void => {
     if (responseData.length > 0) {
@@ -76,7 +82,7 @@ export default function Analysis(): JSX.Element {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   useInterval(() => {
     if (isLoading) {

@@ -151,3 +151,8 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
