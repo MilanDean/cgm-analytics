@@ -7,7 +7,8 @@ from pyathena import connect
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 import pandas as pd
-import seaborn as sns
+import plotly.graph_objects as go
+import plotly.io as py
 
 from .models import ProcessedDataResponse
 
@@ -36,17 +37,24 @@ app.add_middleware(
 
 
 def generate_plot(df, x_column=None, y_column=None, filename=None):
-    font_path = font_manager.findfont(font_manager.FontProperties(family="Arial"))
-    plt.rcParams["font.family"] = font_manager.get_font(font_path).family_name
 
     df["timestamp"] = pd.to_datetime(df["Time"])
 
     plt.figure(figsize=(15, 5))
-    sns.lineplot(data=df, x=x_column, y=y_column, legend="brief", label=y_column)
-    plt.title(f"Raw {y_column} Data")
-    plt.tight_layout()
+    fig = go.Figure(data=go.Scatter(x=df[x_column], y=df[y_column]))
+    fig.update_layout(
+        autosize=True,
+        width=1500,
+        height=500,
+        title=f"Raw {y_column} Data"
+    )
 
-    plt.savefig(filename)
+    # Convert the figure to an HTML string
+    fig_html = py.to_html(fig, full_html=True)
+
+    # Save the HTML string as an HTML file
+    with open(filename, 'w') as f:
+        f.write(fig_html)
 
 
 def create_bucket(bucket_name):
@@ -67,7 +75,7 @@ def upload_file_to_s3(bucket_name, file_name, file_data):
         if isinstance(file_data, str):
             # It's a path, so open the file
             with open(file_data, "rb") as f:
-                s3.upload_fileobj(f, bucket_name, file_name)
+                s3.upload_fileobj(f, bucket_name, file_name, ExtraArgs={'ContentType': 'text/html'})
         else:
             # It's a file-like object, so ensure we're at the start before uploading
             file_data.seek(0)
@@ -152,10 +160,10 @@ async def get_visualization(filename: str):
 
     # Check if the image exists in S3
     try:
-        s3_client.head_object(Bucket=bucket_name, Key=f"{filename}_line_plot.png")
+        s3_client.head_object(Bucket=bucket_name, Key=f"{filename}_line_plot.html")
         line_plot_url = s3_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.png"},
+            Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.html"},
             ExpiresIn=3600,
         )
     except ClientError:
@@ -164,12 +172,12 @@ async def get_visualization(filename: str):
         data = s3_client.get_object(Bucket=bucket_name, Key=f"{filename}")
         df = pd.read_csv(io.BytesIO(data["Body"].read()))
 
-        generate_plot(df, "timestamp", "CGM", "line_plot.png")
-        upload_file_to_s3(bucket_name, f"{filename}_line_plot.png", "line_plot.png")
+        generate_plot(df, "timestamp", "CGM", "line_plot.html")
+        upload_file_to_s3(bucket_name, f"{filename}_line_plot.html", "line_plot.html")
 
         line_plot_url = s3_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.png"},
+            Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.html"},
             ExpiresIn=3600,
         )
 
