@@ -26,7 +26,7 @@ conn = connect(
 
 # Configure CORS
 origins = [
-    "https://main.d1oo3il6uthrk5.amplifyapp.com",
+    os.getenv("CORS_ALLOW_ORIGIN", "http://localhost:3000")
 ]
 app.add_middleware(
     CORSMiddleware,
