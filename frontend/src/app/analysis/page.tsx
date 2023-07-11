@@ -96,18 +96,17 @@ export default function Analysis(): JSX.Element {
     let graphs: JSX.Element[] = [];
 
     if (linePlotUrl) {
-        graphs.push(
-            <Image
-                key={'line-plot'}
-                src={linePlotUrl}
-                alt={`Line Plot`}
-                className="dark:invert mx-3"
-                width={1400}
-                height={300}
-                priority
-            />
-        );
-    }
+      graphs.push(
+          <iframe
+              key={'line-plot'}
+              src={linePlotUrl}
+              title={`Line Plot`}
+              className="dark:invert mx-3"
+              width="1500"
+              height="500"
+          />
+      );
+  }
 
     return graphs;
 };
