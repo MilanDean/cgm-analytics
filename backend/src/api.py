@@ -25,9 +25,12 @@ conn = connect(
 )
 
 # Configure CORS
+origins = [
+    "https://main.d1oo3il6uthrk5.amplifyapp.com",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
