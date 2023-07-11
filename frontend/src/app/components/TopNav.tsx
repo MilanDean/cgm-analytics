@@ -6,7 +6,7 @@ const TopNav: React.FC = () => (
     <div className="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
       <Link href="/">
         <div className="flex title-font font-medium items-center text-gray-900 mb-4 md:mb-0">
-          <span className="ml-3 text-xl">CGM Analytics</span>
+          <span className="ml-3 text-xl">NutriNet</span>
         </div>
       </Link>
       <nav className="md:ml-auto flex flex-wrap px-4 sm:px-6 lg:px-8">
