@@ -49,13 +49,13 @@ export default function Analysis(): JSX.Element {
     setIsLoading(true);
   
     axios
-      .get<RowData[]>(`api.nutrinet-ai.com/api/analysis/${encodeURIComponent(filename)}`)
+      .get<RowData[]>(`https://api.nutrinet-ai.com/api/analysis/${encodeURIComponent(filename)}`)
       .then((response) => {
         setData(response.data);
         checkDataAvailability(response.data);
   
         axios
-          .get<{ line_plot_url: string}>(`api.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`)
+          .get<{ line_plot_url: string}>(`https://api.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`)
           .then((response) => {
               setLinePlotUrl(response.data.line_plot_url);
           })
