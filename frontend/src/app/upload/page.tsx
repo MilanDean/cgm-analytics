@@ -33,7 +33,7 @@ export default function Upload() {
 
     try {
       // Send the file to the FastAPI backend for processing
-      const response = await axios.post('https://cgm-backend.us-east-1.elasticbeanstalk.com/api/analysis', formData, {
+      const response = await axios.post('api.nutrinet-ai.com/api/analysis', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
