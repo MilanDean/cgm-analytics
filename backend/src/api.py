@@ -26,7 +26,7 @@ conn = connect(
 
 # Configure CORS
 origins = [
-    os.getenv("CORS_ALLOW_ORIGIN", "http://localhost:3000")
+    os.getenv("CORS_ALLOW_ORIGIN", "https://www.nutrinet-ai.com")
 ]
 app.add_middleware(
     CORSMiddleware,
