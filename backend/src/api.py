@@ -2,7 +2,6 @@ from botocore.exceptions import ClientError
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pyathena import connect
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -12,17 +11,10 @@ from .models import ProcessedDataResponse
 
 import boto3
 import io
-import os
 
 
 s3 = boto3.client("s3", region_name="us-east-1")
 app = FastAPI(docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
-conn = connect(
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    s3_staging_dir="s3://cgm-analytics-ucb/",
-    region_name="us-east-1",
-)
 
 # Configure CORS
 origins = [
@@ -30,7 +22,6 @@ origins = [
     "http://www.nutrinet-ai.com",
     "http://api.nutrinet-ai.com",
     "https://api.nutrinet-ai.com",
-    "http://localhost",
     "http://localhost:3000",
 ]
 
