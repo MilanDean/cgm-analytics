@@ -11,7 +11,7 @@ export default function Team() {
             <div className="grid w-2/3 py-10 grid-cols-2 h-screen justify-center items-center">
                 <TeamCard name="Dimitrios Psaltos" title="Research Data Scientist"/>
                 <TeamCard name="Marguerite Morgan" title="Data Scientist"/>
-                <TeamCard name="Arun Surendranath" title="Project Manager"/>
+                <TeamCard name="Arun Surendranath" title="Data Scientist"/>
                 <TeamCard name="Milan Dean" title="Machine Learning Engineer"/>
             </div>
         </main>
