@@ -169,7 +169,7 @@ async def get_visualization(filename: str):
         data = s3_client.get_object(Bucket=bucket_name, Key=f"{filename}")
         df = pd.read_csv(io.BytesIO(data["Body"].read()))
 
-        generate_plot(df, "timestamp", "CGM", "line_plot.html")
+        generate_plot(df, "timestamp", "Glucose", "line_plot.html")
         upload_file_to_s3(bucket_name, f"{filename}_line_plot.html", "line_plot.html")
 
         line_plot_url = s3_client.generate_presigned_url(
