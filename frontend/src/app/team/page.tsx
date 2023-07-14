@@ -1,19 +1,11 @@
-import TopNav from "../components/TopNav";
-import TeamCard from "../components/Card";
+import TopNav from '../components/TopNav';
+import TeamPage from '../components/TeamPage';
 
 export default function Team() {
     return (
-        <main className="flex h-screen flex-col items-center p-12 m-2">
-            <head>
-                <title>NutriNet - Team Page</title>/
-            </head>
+        <main className="flex h-screen flex-col items-center p-5 m-2">
             <TopNav />
-            <div className="grid w-2/3 py-10 grid-cols-2 h-screen justify-center items-center">
-                <TeamCard name="Dimitrios Psaltos" title="Research Data Scientist"/>
-                <TeamCard name="Marguerite Morgan" title="Data Scientist"/>
-                <TeamCard name="Arun Surendranath" title="Data Scientist"/>
-                <TeamCard name="Milan Dean" title="Machine Learning Engineer"/>
-            </div>
+            <TeamPage />
         </main>
     );
 }

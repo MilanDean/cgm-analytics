@@ -4,10 +4,7 @@ import TopNav from './components/TopNav'
 export default function Home() {
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">
-      <head>
-        <title>NutriNet - Home</title>/
-      </head>
+    <main className="flex min-h-screen flex-col items-center justify-between p-5 m-2">
       <TopNav />
 
       <div className="relative scale-150">

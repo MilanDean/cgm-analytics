@@ -122,12 +122,9 @@ export default function Analysis(): JSX.Element {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
-      <head>
-        <title>NutriNet - Analysis</title>/
-      </head>
       <TopNav />
       <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 sm:-mx-6 lg:-mx-8 border-2 border-black justify-center items-center">
+        <div className="-mx-4 -my-2 sm:-mx-6 lg:-mx-8 justify-center items-center">
           <header className="p-5">
             <div className="text-center text-2xl font-mono font-bold">
               <h1>Analytics Dashboard</h1>
@@ -177,7 +174,7 @@ export default function Analysis(): JSX.Element {
           </div>
         </div>
       </div>
-      <div className="mt-2 flex">{renderGraphs()}</div>
+      <div className="mt-2 flex" suppressHydrationWarning>{renderGraphs()}</div>
     </div>
   );
 }
