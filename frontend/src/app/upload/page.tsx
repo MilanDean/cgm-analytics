@@ -70,10 +70,7 @@ export default function Upload() {
   }, [accepted]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-12 m-2">
-      <head>
-        <title>NutriNet - Upload</title>/
-      </head>
+    <main className="flex min-h-screen flex-col items-center justify-between p-5 m-2">
       <TopNav />
       <div className="flex flex-col items-center justify-center">
         <UserAgreement isOpen={open} setOpen={setOpen} setAccepted={setAccepted} />
