@@ -21,7 +21,7 @@ const people = [
       name: 'Milan Dean',
       role: 'Software Engineer - ML',
       imageUrl: 'https://media.licdn.com/dms/image/C4E03AQFdWfNAO7l2LQ/profile-displayphoto-shrink_400_400/0/1635734084511?e=1694649600&v=beta&t=v4lnLtCxkwUv3LDm0vfMVitA2nNvoP4PJJHQzBG4AfM',
-      info: 'Milan is a Software Development Engineer at Intel focused on developing a cloud-based SaaS specializing in system performance profiling. Prior to this role, Milan served as Lead Data Scientist on the Validation Capacity & Controls team within the Internal Validation Division (iVE) at Intel, building internal ML tools focused on predictive forecasting.'
+      info: 'Milan is a Software Development Engineer at Intel focused on developing a cloud-based SaaS specializing in system performance profiling. Prior to this role, Milan served as Lead Data Scientist on the Validation Capacity & Controls team within the Internal Validation Engineering (iVE) Division at Intel, building internal ML tools focused on predictive forecasting.'
     },
   ]
   
