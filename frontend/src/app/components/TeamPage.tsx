@@ -9,7 +9,7 @@ const people = [
       name: 'Marguerite Morgan',
       role: 'Data Scientist',
       imageUrl: 'https://media.licdn.com/dms/image/C4D03AQEZ_wpzOaWYFw/profile-displayphoto-shrink_400_400/0/1629753708632?e=1694649600&v=beta&t=kXiokUTywFbgK26IvQSiwp2-PDHkD1kOT9OkovRzY-8',
-      info: ''
+      info: "Marguerite is a data scientist with experience in both the clinical operations and commercial sides of the pharmaceutical industry. She currently works as a Senior Data Scientist within the Commercial Data Science team at Genentech where she builds models to support commercialized products."
     },
     {
       name: 'Arun Surendranath',
