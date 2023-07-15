@@ -3,6 +3,7 @@ from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as py
@@ -10,6 +11,7 @@ import plotly.io as py
 from .models import ProcessedDataResponse
 
 import boto3
+import datetime
 import io
 
 
@@ -35,17 +37,71 @@ app.add_middleware(
 )
 
 
-def generate_plot(df, x_column=None, y_column=None, filename=None):
+def generate_plot(df, filename=None):
 
-    df["timestamp"] = pd.to_datetime(df["Time"])
+    df['Day'] = pd.to_datetime(df['Day']).dt.date
 
-    fig = go.Figure(data=go.Scatter(x=df[x_column], y=df[y_column]))
-    fig.update_layout(
+    if df['Time'].dtype != 'datetime64[ns]':
+    # Convert 'Time' column to datetime format and extract time
+        df['Time'] = pd.to_datetime(df['Time']).dt.time
+
+    # Combine 'Day' and 'Time' into a datetime column
+    df['Datetime'] = df.apply(lambda row: datetime.datetime.combine(row['Day'], row['Time']), axis=1)
+    df['Time'] = df['Datetime'].dt.round('5min').dt.time
+    df['Minutes'] = df['Time'].apply(lambda x: x.hour * 60 + x.minute)
+
+    # Group the data by 'Minutes' and calculate the percentiles
+    data_grouped = df.groupby('Minutes')['Glucose'].quantile([0.10, 0.25, 0.50, 0.75, 0.90]).unstack()
+
+    # Create the base line (median)
+    line = go.Scatter(
+        x=data_grouped.index,
+        y=data_grouped[0.50],
+        mode='lines',
+        line=dict(color='black'),
+        name='Median'
+    )
+
+    # Create the first fill area (10% - 90%)
+    fill_10_90 = go.Scatter(
+        x=data_grouped.index.tolist() + data_grouped.index.tolist()[::-1],  # x, then x reversed
+        y=data_grouped[0.10].tolist() + data_grouped[0.90].tolist()[::-1],  # upper, then lower reversed
+        fill='toself',
+        fillcolor='rgba(211,211,211,0.5)',  # lightgray
+        line=dict(color='rgba(255,255,255,0)'),  # lines between points are white
+        showlegend=False,
+        name='10-90 percentile'
+    )
+
+    # Create the second fill area (25% - 75%)
+    fill_25_75 = go.Scatter(
+        x=data_grouped.index.tolist() + data_grouped.index.tolist()[::-1],
+        y=data_grouped[0.25].tolist() + data_grouped[0.75].tolist()[::-1],
+        fill='toself',
+        fillcolor='rgba(105,105,105,0.5)',  # darkgray
+        line=dict(color='rgba(255,255,255,0)'),
+        showlegend=False,
+        name='25-75 percentile'
+    )
+
+    # Define layout
+    layout = go.Layout(
+        title='Ambulatory Glucose Profile',
         autosize=True,
         width=1500,
         height=500,
-        title=f"Raw {y_column} Data"
+        xaxis=dict(
+            title='Time',
+            tickvals=np.arange(0, 24*60, 120),
+            ticktext=[f'{h:02d}:00' for h in range(0, 24, 2)],
+            tickangle=45
+        ),
+        yaxis=dict(
+            title='Glucose Level'
+        )
     )
+
+    fig = go.Figure(data=[fill_10_90, fill_25_75, line], layout=layout)
 
     # Convert the figure to an HTML string
     fig_html = py.to_html(fig, full_html=True)
@@ -169,7 +225,7 @@ async def get_visualization(filename: str):
         data = s3_client.get_object(Bucket=bucket_name, Key=f"{filename}")
         df = pd.read_csv(io.BytesIO(data["Body"].read()))
 
-        generate_plot(df, "timestamp", "Glucose", "line_plot.html")
+        generate_plot(df, "line_plot.html")
         upload_file_to_s3(bucket_name, f"{filename}_line_plot.html", "line_plot.html")
 
         line_plot_url = s3_client.generate_presigned_url(
