@@ -108,5 +108,5 @@ if __name__ == '__main__':
     full_featureset = pd.concat(featureset)
     # full_featureset = full_featureset[full_featureset.n_samples == 30]
     os.makedirs('../data/output/features/', exist_ok=True)
-    full_featureset.to_csv('../data/output/features/synthetic_dataset_cnn_image_map_60minWindow_30minOverlap.csv',
+    full_featureset.to_csv('../data/output/features/synthetic_dataset_cnn_image_map_60minWindow_2023.csv',
                            index = False)

@@ -1,8 +1,10 @@
+import matplotlib.pyplot as plt
 import sklearn.preprocessing
 from sklearn.preprocessing import LabelEncoder
 from modeling_util import *
-from lightgbm import LGBMModel, LGBMClassifier, cv
+from sklearn.svm import SVR
 from sklearn.feature_selection import RFECV
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error, mean_absolute_error, r2_score
 from sklearn.base import clone
 from probatus.feature_elimination import ShapRFECV
 import pickle
@@ -85,20 +87,28 @@ if __name__ == '__main__':
     train_df = pd.read_csv('../data/output/features/60minWindow_train_set.csv')
     test_df = pd.read_csv('../data/output/features/60minWindow_test_set.csv') # I know it says test, but its val
     val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
-    rfe_results = pd.read_csv('../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    rfe_results = pd.read_csv('../data/output/training/svr_features_20230710.csv')
     selected_features = rfe_results.feature.to_list()
-    optimal_threshold = 0.62062 # From J-index from optimal model
+
+    # Filter for rows with meals
+    train_df = train_df[train_df.meal > 0 ]
+    test_df = test_df[test_df.meal > 0]
+    val_df = val_df[val_df.meal > 0]
 
     # format train and test datasets correctly
     train_X = train_df.iloc[:,:-5]
     train_X = train_X[selected_features]
-    train_Y = train_df.meal
+    train_Y = train_df.CHO_total * 3
     test_X = test_df.iloc[:,:-5]
     test_X = test_X[selected_features]
-    test_Y = test_df.meal
+    test_Y = test_df.CHO_total * 3
     val_X = val_df.iloc[:,:-5]
     val_X = val_X[selected_features]
-    val_Y = val_df.meal
+    val_Y = val_df.CHO_total * 3
+
+    #####################
+    ### Model Testing ###
+    #####################
 
     #### Hyperparameter Tuned Models ####
     baseline_results = []
@@ -107,71 +117,55 @@ if __name__ == '__main__':
     group_array = np.array(pd.concat([train_df, val_df]).subject)
     combined_Y = pd.concat([train_Y, val_Y]).reset_index(drop = True)
 
-    lgbmF_clf = LGBMClassifier(boosting_type = 'gbdt', objective='binary', learning_rate=0.1, max_bin = 510,
-                     class_weight='balanced', n_estimators=250, num_leaves=20,
-                                   max_depth=20,
-                                   random_state=1, n_jobs=-1, metric='average_precision')
+    svrF_model = SVR(degree = 1,
+                    kernel='rbf',
+                    gamma=0.1,
+                    C=1000,
+                    )
 
-    lgbmF_clf.fit(combined_X, combined_Y)
-    test_probs = lgbmF_clf.predict_proba(test_X)
-    yPrime = [0 if x < optimal_threshold else 1 for x in test_probs[:,1]]
-    print(accuracy_score(test_Y, yPrime))
-    print(roc_auc_score(test_Y, test_probs[:,1]))
-    print(classification_report(test_Y, yPrime))
-    baseline_results.append({'model': 'tuned_lgbm_60min_windows',
-                             'accuracy': accuracy_score(test_Y, yPrime),
-                             'roc_auc': roc_auc_score(test_Y, test_probs[:,1]),
-                             'precision': precision_score(test_Y, yPrime),
-                             'recall': recall_score(test_Y, yPrime),
-                             'f1-score': f1_score(test_Y, yPrime),
-                             'j_index': optimal_threshold,
-                             'pr_auc': average_precision_score(test_Y, test_probs[:,1]),
+    svrF_model.fit(combined_X, combined_Y)
+    yPrime = svrF_model.predict(test_X)
+    baseline_results.append({'model': 'tuned_svr',
+                             'mean_squared_error': mean_squared_error(test_Y, yPrime, squared=False),
+                             'mean_absolute_percentage_error': mean_absolute_percentage_error(test_Y, yPrime),
+                             'mean_absolute_error': mean_absolute_error(test_Y, yPrime),
+                             'r2_score': r2_score(test_Y, yPrime),
+                             })
+
+    yPrime_train = svrF_model.predict(combined_X)
+    baseline_results.append({'model': 'tuned_svr_train_results',
+                             'mean_squared_error': mean_squared_error(combined_Y, yPrime_train, squared=False),
+                             'mean_absolute_percentage_error': mean_absolute_percentage_error(combined_Y, yPrime_train),
+                             'mean_absolute_error': mean_absolute_error(combined_Y, yPrime_train),
+                             'r2_score': r2_score(combined_Y, yPrime_train)
                              })
 
     os.makedirs('../data/output/training/', exist_ok=True)
 
     # Save top features
-    pd.DataFrame({'feature': combined_X.columns,
-                  'importance': lgbmF_clf.feature_importances_}).sort_values('importance', ascending = False).to_csv(
-        '../data/output/training/lgbm_Final_featureImp_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
-
-    # Confusion Matrix
-    cm = confusion_matrix(test_Y, yPrime)
-    ConfusionMatrixDisplay(cm).plot()
-    plt.savefig('../data/output/training/lgbm_Final_confMatrix_{}.png'.format(datetime.today().strftime('%Y%m%d')))
-    plt.close()
+    pd.DataFrame({'feature': train_X.columns,
+                  'importance': 1}).sort_values('importance', ascending = False).to_csv(
+        '../data/output/training/Final_svr_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
 
     # Save the meal predictions
     test_df['predictions'] = yPrime
-    test_df.to_csv('../data/output/training/lgbm_Final_predicitons_{}.csv'.format(
+    test_df.to_csv('../data/output/training/Final_svr_predicitons_{}.csv'.format(
         datetime.today().strftime('%Y%m%d')), index = False)
 
-    # Plot ROC Curve
-    train_probs = lgbmF_clf.predict_proba(combined_X)
-    optimal_threshold_train = j_index_threshold(combined_Y, train_probs[:,1], lgbm=True)
-    yPrime_train = [0 if x < optimal_threshold else 1 for x in train_probs[:,1]]
-    plot_roc_curves(combined_Y, train_probs[:,1], test_Y, test_probs[:,1])
-
+    # Scatterplot of points
+    plt.figure()
+    r2_metric = r2_score(test_Y, yPrime)
+    sns.regplot(data = test_df, x = 'CHO_total', y='predictions',
+                line_kws={'color':'red'})
+    plt.title('SVR True CHO vs Predictions (r2 = {:.2f})'.format(r2_metric))
+    plt.savefig('../data/output/training/Final_svr_r2_plot.png')
+    plt.close()
     # Save results
-    results = pd.DataFrame(baseline_results).sort_values('roc_auc', ascending=False)
-    results.to_csv('../data/output/training/lgbm_Final_results.csv', index = False)
+    results = pd.DataFrame(baseline_results).sort_values('mean_squared_error')
+    results.to_csv('../data/output/training/Final_svr_results.csv', index = False)
     print(results)
 
     # Save models
-    os.makedirs('../data/output/models/', exist_ok=True)
-    with open('../data/output/models/lgbm_mealDetection_model.pickle', 'wb') as handle:
-        pickle.dump(lgbmF_clf, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # scalerfile = '../data/output/models/lgbm_standard_scaler.pickle'
-    # pickle.dump(standScale, open(scalerfile, 'wb'))
-
-    # Look at predictions
-    for subj in test_df.subject.unique().tolist():
-        plt.figure(figsize=(10,5))
-        sub_df = test_df[test_df.subject == subj]
-        plt.scatter(pd.to_datetime(sub_df.start_block), sub_df.meal, label = 'True Meals')
-        plt.scatter(pd.to_datetime(sub_df.start_block), sub_df.predictions, color='red', label = 'predictions')
-        plt.legend()
-        plt.xlabel('time')
-        plt.ylabel('No Meal <---> Meal')
-        plt.savefig('../data/output/training/lgbm_Final_Preditions_{}_{}.png'.format(subj,
-                                                                                 datetime.today().strftime('%Y%m%d')))
+    # os.makedirs('../data/output/models/', exist_ok=True)
+    # with open('../data/output/models/svr_model_carbEstimate.pickle', 'wb') as handle:
+    #     pickle.dump(svrF_model, handle, protocol=pickle.HIGHEST_PROTOCOL)

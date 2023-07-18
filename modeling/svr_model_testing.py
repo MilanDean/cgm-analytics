@@ -136,10 +136,11 @@ if __name__ == '__main__':
     # SKLEARN RFE --- Reduce to only top features
     # selector = RFECV(estimator = SVR(), #boosting_type = 'gbdt'
     #                   scoring='neg_mean_absolute_error', step=1, cv=pds, n_jobs=-1)
-    # rfe_out = selector.fit(combined_X, combined_Y, groups=group_array)
-    # rfe_combined_X = combined_X.iloc[:, rfe_out.support_]
-    # rfe_train_X = train_X.iloc[:, rfe_out.support_]
-    # rfe_test_X = test_X.iloc[:, rfe_out.support_]
+    sfs = SequentialFeatureSelector(SVR(), n_features_to_select=12, scoring='r2', cv=pds, n_jobs=-1)
+    sfs_out = sfs.fit(combined_X, combined_Y)
+    combined_X = combined_X.iloc[:, sfs_out.support_]
+    train_X = train_X.iloc[:, sfs_out.support_]
+    test_X = test_X.iloc[:, sfs_out.support_]
 
     degree = [int(x) for x in np.linspace(1, 10, num=1)]
     kernel = ['linear', 'poly',
@@ -204,9 +205,9 @@ if __name__ == '__main__':
     pd.DataFrame([svr_model.best_params_]).to_csv('../data/output/training/svr_top_hyperparams.csv')
 
     # Save top features
-    # pd.DataFrame({'feature': train_X.columns,
-    #               'importance': svrF_model.feature_importances_}).sort_values('importance', ascending = False).to_csv(
-    #     '../data/output/training/lgbm_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
+    pd.DataFrame({'feature': train_X.columns,
+                  'importance': 1}).sort_values('importance', ascending = False).to_csv(
+        '../data/output/training/svr_features_{}.csv'.format(datetime.today().strftime('%Y%m%d')))
 
     # Save the meal predictions
     test_df['predictions'] = yPrime
