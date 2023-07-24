@@ -136,8 +136,8 @@ def plot_daily_predictions(meal_data):
     plt.bar(meals_per_day.Day, meals_per_day['Total Carbs'])
     plt.xticks(rotation = 45)
     plt.ylabel('Total CHO (g) per Day')
-    plt.axhline(y=225, color = 'r', linestyle='--')
-    plt.axhline(y=325, color='r', linestyle='--',label='Healthy Carb Amount')
+    plt.axhline(y=225, color = 'r', linestyle='--') #225
+    plt.axhline(y=325, color='r', linestyle='--',label='Healthy Carb Amount') # 325
     plt.legend()
     plt.tight_layout()
 
@@ -147,20 +147,42 @@ def generate_meal_diary_table(meal_data):
     meal_data['Date'] = [pd.to_datetime(x).date().strftime(format='%m/%d/%Y') for x in meal_data.start_block]
     meal_data['Meal Time'] = [pd.to_datetime(x).time().strftime(format='%H:%M') for x in meal_data.start_block]
     meal_data['Carbs (g)'] = round(meal_data.carb_preds)
-    conditions = [meal_data.Carbs < 28,
-                  (meal_data.Carbs >= 28) & (meal_data.Carbs < 75),
-                  (meal_data.Carbs >= 75)]
-    selections = ['small meal', 'light/medium meal', 'large meal']
+    conditions = [meal_data['Carbs (g)'] < 28,
+                  (meal_data['Carbs (g)'] >= 28) & (meal_data['Carbs (g)'] < 45),
+                  (meal_data['Carbs (g)'] >= 45) & (meal_data['Carbs (g)'] < 75),
+                  (meal_data['Carbs (g)'] >= 75)]
+    selections = ['small meal', 'small meal', 'medium meal', 'large meal']
     meal_data['Meal Size'] = np.select(conditions, selections)
     display_df = meal_data[['Date', 'Meal Time', 'Carbs (g)', 'Meal Size']]
     display_df.to_csv('./meal_prediction_table.csv', index = False)
 
+def timeseries_pred(file, meal_data):
+    plt.figure(figsize = (20,5))
+    plt.plot(file.timestamp, file.CGM, label ='Glucose', linewidth=3)
+    plt.bar(meal_data.start_block, meal_data.carb_preds, color='red', width=0.025, label='meal carbs(g)')
+    plt.scatter(meal_data.start_block, meal_data.carb_preds, color='red')
+    plt.axhline(y=70, color = 'green', linestyle='--', label = 'Target CGM Range')
+    plt.axhline(y=180, color = 'green', linestyle='--')
+    plt.legend()
+    plt.plot()
+    plt.tight_layout()
+
+    plt.savefig('./timeseries_NutriNet_testing.png')
+
+def create_raw_data_table(file):
+    conditions = [round(file.CGM) <= 54, (round(file.CGM) <= 69) & (round(file.CGM) >= 55), (round(file.CGM) <= 180) & (round(file.CGM) >= 70),
+     (round(file.CGM) <= 250) & (round(file.CGM) >= 181), round(file.CGM) > 250]
+    selections = ['Very Low', 'Low', 'Target', 'High', 'very High']
+    file['Glucose Range'] = np.select(conditions, selections)
+    file[['Time', 'CGM', 'Glucose Range']].to_csv('nutriNet_Raw_data_table.csv', index = False)
+
 if __name__ == '__main__':
-    file = pd.read_csv('../data/input/synthetic_dataset/results/adult#001.csv')
+    file = pd.read_csv('../data/input/synthetic_dataset/results/adult#008.csv')
+    create_raw_data_table(file) # save raw data for site visual
 
     meal_detect_model = pickle.load(open('../data/output/models/lgbm_mealDetection_model.pickle', 'rb'))
     carb_estimate_model = pickle.load(open('../data/output/models/svr_model_carbEstimate.pickle', 'rb'))
-    rfe_results = pd.read_csv('../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    rfe_results = pd.read_csv('../data/output/training/imbal_tuneToPrec/lgbm_features_20230716.csv') #../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
     age = input('enter age of participant: ')
     # Timeit - start
     starttime = timeit.default_timer()
@@ -173,7 +195,7 @@ if __name__ == '__main__':
 
     # Select features from RFE
     selected_features = rfe_results.feature.to_list()
-    optimal_threshold = 0.62062
+    optimal_threshold =  0.27939#0.78054 #0.62062
 
     # Set-up Prediction dataset
     X = scaled_features.iloc[:,:-5]
@@ -185,7 +207,7 @@ if __name__ == '__main__':
 
     # Now do the carb estimation
     meal_data = scaled_features[scaled_features.predictions == 1]
-    carbEst_results = pd.read_csv('../data/output/training/svr_features_20230710.csv')
+    carbEst_results = pd.read_csv('../data/output/training/svr_features_20230723.csv')
     carbEst_features = carbEst_results.feature.to_list()
     X = meal_data[carbEst_features]
     preds = carb_estimate_model.predict(X)
@@ -198,10 +220,17 @@ if __name__ == '__main__':
     print('confusionMatrix Meal Detection')
     cm = confusion_matrix(scaled_features.meal.astype('int'), scaled_features['predictions'].astype('int'))
     ConfusionMatrixDisplay(cm).plot()
+    print('MAE: ', mean_absolute_error(meal_data.CHO_total*3, meal_data.carb_preds))
+    print('r2: ', r2_score(meal_data.CHO_total*3, meal_data.carb_preds))
+    print('RMSE: ', mean_squared_error(meal_data.CHO_total*3, meal_data.carb_preds, squared=False))
+
 
     # Display Results
     plot_daily_predictions(meal_data)
 
     # Meal Tables
     generate_meal_diary_table(meal_data)
+
+    # Time series
+    timeseries_pred(file, meal_data)
     

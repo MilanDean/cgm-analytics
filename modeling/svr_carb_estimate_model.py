@@ -87,7 +87,7 @@ if __name__ == '__main__':
     train_df = pd.read_csv('../data/output/features/60minWindow_train_set.csv')
     test_df = pd.read_csv('../data/output/features/60minWindow_test_set.csv') # I know it says test, but its val
     val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
-    rfe_results = pd.read_csv('../data/output/training/svr_features_20230710.csv')
+    rfe_results = pd.read_csv('../data/output/training/svr_features_20230723.csv')
     selected_features = rfe_results.feature.to_list()
 
     # Filter for rows with meals
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     svrF_model = SVR(degree = 1,
                     kernel='rbf',
                     gamma=0.1,
-                    C=1000,
+                    C=100,
                     )
 
     svrF_model.fit(combined_X, combined_Y)
@@ -166,6 +166,6 @@ if __name__ == '__main__':
     print(results)
 
     # Save models
-    # os.makedirs('../data/output/models/', exist_ok=True)
-    # with open('../data/output/models/svr_model_carbEstimate.pickle', 'wb') as handle:
-    #     pickle.dump(svrF_model, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    os.makedirs('../data/output/models/', exist_ok=True)
+    with open('../data/output/models/svr_model_carbEstimate.pickle', 'wb') as handle:
+        pickle.dump(svrF_model, handle, protocol=pickle.HIGHEST_PROTOCOL)

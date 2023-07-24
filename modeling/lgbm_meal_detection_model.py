@@ -82,12 +82,12 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    train_df = pd.read_csv('../data/output/features/60minWindow_train_set.csv')
-    test_df = pd.read_csv('../data/output/features/60minWindow_test_set.csv') # I know it says test, but its val
-    val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
-    rfe_results = pd.read_csv('../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    train_df = pd.read_csv('../data/output/features/60minWindow_imbal_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_imbal_test_set.csv') # I know it says test, but its val
+    val_df = pd.read_csv('../data/output/features/60minWindow_imbal_val_set.csv')
+    rfe_results = pd.read_csv('../data/output/training/imbal_tuneToPrec/lgbm_features_20230716.csv') #training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
     selected_features = rfe_results.feature.to_list()
-    optimal_threshold = 0.62062 # From J-index from optimal model
+    optimal_threshold = 0.78054 # From J-index from optimal model
 
     # format train and test datasets correctly
     train_X = train_df.iloc[:,:-5]
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     lgbmF_clf = LGBMClassifier(boosting_type = 'gbdt', objective='binary', learning_rate=0.1, max_bin = 510,
                      class_weight='balanced', n_estimators=250, num_leaves=20,
                                    max_depth=20,
-                                   random_state=1, n_jobs=-1, metric='average_precision')
+                                   random_state=1, n_jobs=-1, metric='precision')
 
     lgbmF_clf.fit(combined_X, combined_Y)
     test_probs = lgbmF_clf.predict_proba(test_X)
