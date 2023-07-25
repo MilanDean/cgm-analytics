@@ -22,6 +22,8 @@ boto3 = "^1.26.165"
 pyathena = "^3.0.4"
 kaleido = "0.2.1"
 plotly = "^5.15.0"
+lightgbm = "^4.0.0"
+tqdm = "^4.65.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
