@@ -1,10 +1,7 @@
 from .modeling_util import *
 from .features import *
-from tqdm import tqdm
 
 import matplotlib.pyplot as plt
-
-import io
 
 def raw_to_interp(sub_df):
     sub_df['timestamp'] = pd.to_datetime(sub_df.Time)
@@ -16,7 +13,7 @@ def raw_to_interp(sub_df):
     preped_df = interp_cgm_data(interp_cgm, cgm_col='CGM', time_col='timestamp')
     preped_df['subject'] = 'subject'
 
-    preped_df['timestamp'] = [x.round(freq='T') for x in tqdm(preped_df.Time)]
+    preped_df['timestamp'] = [x.round(freq='T') for x in preped_df.Time]
     meals_and_cgm = pd.merge_asof(preped_df, sub_df[['BG', 'CGM', 'CHO', 'insulin', 'LBGI', 'HBGI', 'Risk',
                                                      'timestamp']], on=['timestamp'],
                                   direction='nearest', tolerance=pd.Timedelta('29 sec'))  # 30 sec orig

@@ -3,7 +3,6 @@ from sklearn.metrics import roc_curve, precision_recall_curve
 import numpy as np
 import pandas as pd
 
-import os
 import random
 
 # set seed
