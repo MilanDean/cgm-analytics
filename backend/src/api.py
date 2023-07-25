@@ -3,7 +3,7 @@ from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from .models import ProcessedDataResponse
-from src.ml_pipeline.helper_functions import preprocess_data, scale_data, generate_meal_diary_table, plot_daily_predictions
+from src.ml_pipeline.helper_functions import preprocess_data, scale_data, plot_daily_predictions
 
 import numpy as np
 import pandas as pd
@@ -13,12 +13,12 @@ import plotly.io as py
 import boto3
 import datetime
 import io
-import os
 import pickle
 
 
 s3 = boto3.client("s3", region_name="us-east-1")
 app = FastAPI(docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
+bucket_name = "cgm-analytics-ucb"
 
 # Configure CORS
 origins = [
@@ -45,8 +45,12 @@ def preprocess_feature_set(preprocess_data: preprocess_data, filename: str):
        data into a standardized, reduced feature set for prediction."""
 
     BUCKET_NAME = "nutrinet-ml-models"
-    SCALAR = pickle.loads(s3.Bucket(BUCKET_NAME).Object("standard_scaler_mealDetection.pickle").get()['Body'].read())
-    reduced_feature_set = preprocess_data(filename)
+    SCALAR = pickle.loads(s3.get_object(Bucket=BUCKET_NAME, Key="standard_scaler_mealDetection.pickle")['Body'].read())
+
+    download_file_from_s3(bucket_name, filename)
+    df = pd.read_csv(filename)
+
+    reduced_feature_set = preprocess_data(df)
     scaled_feature_set = scale_data(reduced_feature_set, SCALAR)
 
     return scaled_feature_set
@@ -55,11 +59,15 @@ def preprocess_feature_set(preprocess_data: preprocess_data, filename: str):
 def meal_prediction(filename: str):
 
     BUCKET_NAME = "nutrinet-ml-models"
-    RFE_RESULTS = s3.get_object(Bucket=BUCKET_NAME, Key="lgbm_features_20230716.csv")
-    LGBM_MEAL_DETECTION_MODEL = pickle.loads(s3.Bucket(BUCKET_NAME).Object("lgbm_mealDetection_model.pickle").get()['Body'].read())
-    scaled_feature_set = preprocess_feature_set(preprocess_data=preprocess_data, filename=str)
+    RFE_RESULTS = s3.get_object(Bucket=BUCKET_NAME, Key="lgbm_features_20230716.csv")['Body'].read()
+    LGBM_MEAL_DETECTION_MODEL = pickle.loads(s3.get_object(Bucket=BUCKET_NAME, Key="lgbm_mealDetection_model.pickle")['Body'].read())
+    scaled_feature_set = preprocess_feature_set(preprocess_data=preprocess_data, filename=filename)
 
-    selected_features = RFE_RESULTS.feature.to_list()
+    str_results = RFE_RESULTS.decode('utf-8')
+    data = io.StringIO(str_results)
+    df = pd.read_csv(data)
+
+    selected_features = df.feature.to_list()
     X = scaled_feature_set.iloc[:, :-5]
     X = X[selected_features]
 
@@ -72,13 +80,13 @@ def meal_prediction(filename: str):
 def carb_prediction(filename: str):
 
     BUCKET_NAME = "nutrinet-ml-models"
-    CARB_ESTIMATE_FEATURES = s3.get_object(Bucket=BUCKET_NAME, Key="svr_features_20230710.csv")
-    SVR_CARB_MODEL = pickle.loads(s3.Bucket(BUCKET_NAME).Object("svr_model_carbEstimate.pickle").get()['Body'].read())
+    CARB_ESTIMATE_FEATURES = s3.get_object(Bucket=BUCKET_NAME, Key="svr_features_20230723.csv")['Body'].read()
+    SVR_CARB_MODEL = pickle.loads(s3.get_object(Bucket=BUCKET_NAME, Key="svr_model_carbEstimate.pickle")['Body'].read())
 
     carb_feature_set = meal_prediction(filename)
     meal_data = carb_feature_set[carb_feature_set.predictions == 1]
 
-    carb_df = pd.read_csv(io.BytesIO(CARB_ESTIMATE_FEATURES["Body"].read()))
+    carb_df = pd.read_csv(io.BytesIO(CARB_ESTIMATE_FEATURES))
     carbEst_features = carb_df.feature.to_list()
 
     X = meal_data[carbEst_features]
@@ -102,7 +110,7 @@ def generate_plot(df, filename=None):
     df['Minutes'] = df['Time'].apply(lambda x: x.hour * 60 + x.minute)
 
     # Group the data by 'Minutes' and calculate the percentiles
-    data_grouped = df.groupby('Minutes')['Glucose'].quantile([0.10, 0.25, 0.50, 0.75, 0.90]).unstack()
+    data_grouped = df.groupby('Minutes')['CGM'].quantile([0.10, 0.25, 0.50, 0.75, 0.90]).unstack()
 
     # Create the base line (median)
     line = go.Scatter(
@@ -176,19 +184,16 @@ def create_bucket(bucket_name):
 
 def upload_file_to_s3(bucket_name, file_name, file_data):
     try:
-        # Get file extension and determine ContentType
-        _, file_extension = os.path.splitext(file_name)
-
-        if file_extension == ".html":
-            content_type = "text/html"
-        elif file_extension == ".png":
-            content_type = "image/png"
+        # Check if file_data is a path (str) or a file-like object
+        if isinstance(file_data, str):
+            # It's a path, so open the file
+            with open(file_data, "rb") as f:
+                ### Todo - Need to write the logic to handle static images or plotly html which uses ExtraArgs={'ContentType': 'text/html'}
+                s3.upload_fileobj(f, bucket_name, file_name, ExtraArgs={'ContentType': 'image/png'})
         else:
-            content_type = "application/octet-stream"
-
-        # It's a file-like object, so ensure we're at the start before uploading
-        file_data.seek(0)
-        s3.upload_fileobj(file_data, bucket_name, file_name, ExtraArgs={'ContentType': content_type})
+            # It's a file-like object, so ensure we're at the start before uploading
+            file_data.seek(0)
+            s3.upload_fileobj(file_data, bucket_name, file_name)
         print(f"File {file_name} uploaded successfully to bucket {bucket_name}")
         return True
     except ClientError as e:
@@ -267,38 +272,34 @@ async def get_visualization(filename: str):
 
     # Check if the image exists in S3
     try:
-        s3.head_object(Bucket=bucket_name, Key=f"{filename}_line_plot.html")
-        line_plot_url = s3.generate_presigned_url(
+        s3.head_object(Bucket=bucket_name, Key=f"{filename}_prediction.png")
+        prediction_url = s3.generate_presigned_url(
             "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.html"},
+            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction.png"},
             ExpiresIn=3600,
         )
+        print("Located previously generated prediction. Loading into frontend...")
     except ClientError:
-        # Need to get data from S3 and then read the data from the object Body before
-        # converting to pandas dataframe
-        data = s3.get_object(Bucket=bucket_name, Key=f"{filename}")
-        df = pd.read_csv(io.BytesIO(data["Body"].read()))
-        
-        generate_plot(df, "line_plot.html")
-        upload_file_to_s3(bucket_name, f"{filename}_line_plot.html", "line_plot.html")
 
+        print("Loading carb data...")
         predicted_meal_data = carb_prediction(filename=filename)
-        prediction_image = plot_daily_predictions(predicted_meal_data)
-        upload_file_to_s3(bucket_name, f"{filename}_prediction.png", prediction_image)
 
-        line_plot_url = s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_line_plot.html"},
-            ExpiresIn=3600,
-        )
+        print("Loading prediction plot...")
+        plot_daily_predictions(predicted_meal_data, "carbPrediction.png")
+
+        print("Uploading Prediction to S3 bucket...")
+        upload_file_to_s3(bucket_name, f"{filename}_prediction.png", "carbPrediction.png")
+
+        print("Generating presigned URL...")
         prediction_url = s3.generate_presigned_url(
             "get_object",
             Params={"Bucket": bucket_name, "Key": f"{filename}_prediction.png"},
             ExpiresIn=3600,
         )
 
-    return {"line_plot_url": line_plot_url, "prediction_url": prediction_url}
+        print(f"Success! Loaded prediction url: {prediction_url}")
+
+    return {"prediction_url": prediction_url}
 
 
-bucket_name = "cgm-analytics-ucb"
 create_bucket(bucket_name)
