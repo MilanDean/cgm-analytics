@@ -1,29 +1,28 @@
 from .modeling_util import *
 from .features import *
-# from tqdm import tqdm
+from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
 import io
-import pickle
 
-# def raw_to_interp(sub_df):
-#     sub_df['timestamp'] = pd.to_datetime(sub_df.Time)
-#     interp_dates = pd.DataFrame(pd.date_range(sub_df.timestamp.iloc[0], sub_df.timestamp.iloc[-1], freq='1min'),
-#                                 columns=['timestamp'])
+def raw_to_interp(sub_df):
+    sub_df['timestamp'] = pd.to_datetime(sub_df.Time)
+    interp_dates = pd.DataFrame(pd.date_range(sub_df.timestamp.iloc[0], sub_df.timestamp.iloc[-1], freq='1min'),
+                                columns=['timestamp'])
 
-#     interp_cgm = pd.merge(sub_df, interp_dates, on=['timestamp'],
-#                           how='outer').sort_values('timestamp').reset_index(drop=True)
-#     preped_df = interp_cgm_data(interp_cgm, cgm_col='CGM', time_col='timestamp')
-#     preped_df['subject'] = 'subject'
+    interp_cgm = pd.merge(sub_df, interp_dates, on=['timestamp'],
+                          how='outer').sort_values('timestamp').reset_index(drop=True)
+    preped_df = interp_cgm_data(interp_cgm, cgm_col='CGM', time_col='timestamp')
+    preped_df['subject'] = 'subject'
 
-#     preped_df['timestamp'] = [x.round(freq='T') for x in tqdm(preped_df.Time)]
-#     meals_and_cgm = pd.merge_asof(preped_df, sub_df[['BG', 'CGM', 'CHO', 'insulin', 'LBGI', 'HBGI', 'Risk',
-#                                                      'timestamp']], on=['timestamp'],
-#                                   direction='nearest', tolerance=pd.Timedelta('29 sec'))  # 30 sec orig
-#     meals_and_cgm['CHO'] = meals_and_cgm['CHO'].fillna(0)
+    preped_df['timestamp'] = [x.round(freq='T') for x in tqdm(preped_df.Time)]
+    meals_and_cgm = pd.merge_asof(preped_df, sub_df[['BG', 'CGM', 'CHO', 'insulin', 'LBGI', 'HBGI', 'Risk',
+                                                     'timestamp']], on=['timestamp'],
+                                  direction='nearest', tolerance=pd.Timedelta('29 sec'))  # 30 sec orig
+    meals_and_cgm['CHO'] = meals_and_cgm['CHO'].fillna(0)
 
-#     return meals_and_cgm
+    return meals_and_cgm
 
 def interp_cgm_data(df, cgm_col='cgm_val', time_col='timestamps'):
     '''
@@ -101,7 +100,8 @@ def preprocess_data(file):
     interp_data = raw_to_interp(file)
     feature_set = derive_features(interp_data, subject = 'test1')
     feature_set = feature_set.rename(columns = {'label(meal)':'meal'})
-    # feature_set['age'] = age - Need to figure out a better way to implement this later
+    # Todo - Need to figure out a better way to implement this later
+    feature_set['age'] = 32
     feature_set = feature_set.dropna(axis=0)
     reduced_feature_set = feature_set[FEATURE_NAMES] # only select features without high correlation values
 
@@ -121,7 +121,7 @@ def scale_data(reduced_feature_set, standard_scaler):
 
     return scaled_features
 
-def plot_daily_predictions(meal_data):
+def plot_daily_predictions(meal_data, plotname):
     # Display Results
     meal_data['start_block'] = pd.to_datetime(meal_data.start_block)
     meal_data['day'] = meal_data.start_block.dt.date
@@ -129,6 +129,7 @@ def plot_daily_predictions(meal_data):
     meals_per_day = meal_data.groupby('day')[['predictions', 'carb_preds']].sum().reset_index()
     meals_per_day.columns = ['Day', 'Meals', 'Total Carbs']
 
+    plt.subplots(figsize=(10,5))
     plt.subplot(211)
     plt.bar(meals_per_day.Day, meals_per_day.Meals)
     plt.xticks(rotation = 45)
@@ -144,14 +145,11 @@ def plot_daily_predictions(meal_data):
     plt.legend()
     plt.tight_layout()
 
-    img_data = io.BytesIO()
-    plt.savefig(img_data, format='png')
-    img_data.seek(0)
+    plt.savefig(plotname)
     
-    return img_data
-    
-    
+
 def generate_meal_diary_table(meal_data):
+
     meal_data['Date'] = [pd.to_datetime(x).date().strftime(format='%m/%d/%Y') for x in meal_data.start_block]
     meal_data['Meal Time'] = [pd.to_datetime(x).time().strftime(format='%H:%M') for x in meal_data.start_block]
     meal_data['Carbs (g)'] = round(meal_data.carb_preds)
