@@ -55,9 +55,10 @@ export default function Analysis(): JSX.Element {
         checkDataAvailability(response.data);
   
         axios
-          .get<{ line_plot_url: string}>(`https://api.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`)
+          .get<{ prediction_url: string}>(`https://api.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`)
           .then((response) => {
-              setLinePlotUrl(response.data.line_plot_url);
+              setLinePlotUrl(response.data.prediction_url);
+              console.log(response.data)
           })
           .catch((error) => {
               console.log(error);
@@ -107,8 +108,8 @@ export default function Analysis(): JSX.Element {
               key={'line-plot'}
               src={linePlotUrl}
               title={`Line Plot`}
-              className="dark:invert mx-3"
-              width="1500"
+              className="flex"
+              width="1000"
               height="500"
           />
       );
@@ -174,7 +175,7 @@ export default function Analysis(): JSX.Element {
           </div>
         </div>
       </div>
-      <div className="mt-2 flex" suppressHydrationWarning>{renderGraphs()}</div>
+      <div className="m-3" suppressHydrationWarning>{renderGraphs()}</div>
     </div>
   );
 }
