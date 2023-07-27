@@ -1,43 +1,52 @@
-import Image from 'next/image'
 import TopNav from './components/TopNav'
+import Link from 'next/link';
 
-export default function Home() {
-
+export default function Example() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-5 m-2">
-      <TopNav />
-
-      <div className="relative scale-150">
-        <Image
-          src="/berkeley-bear.svg"
-          alt="Berkeley Logo Black"
-          width={350}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify- dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-3 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://www.ischool.berkeley.edu/"
-            target="/"
-            rel="noopener noreferrer"
-          >
-            By:{' '}
-            <Image
-              src="/berkeleyischool-logo.svg"
-              alt="UC Berkeley"
-              className="dark:invert"
-              width={150}
-              height={18}
-              priority
+    <div className="relative bg-white">
+      <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-12 lg:gap-x-8 lg:px-8">
+        <div className="px-6 pb-24 pt-10 sm:pb-32 lg:col-span-7 lg:px-0 lg:pb-56 lg:pt-48 xl:col-span-6">
+          <div className="mx-auto max-w-2xl lg:mx-0">
+            <img
+              className="h-11"
+              src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
+              alt="Nutrinet"
             />
-          </a>
+            <div className="hidden sm:mt-32 sm:flex lg:mt-16">
+            </div>
+            <h1 className="mt-24 text-4xl font-bold tracking-tight text-gray-900 sm:mt-10 sm:text-6xl">
+              AI-powered insights for your health journey.
+            </h1>
+            <p className="mt-6 text-lg leading-8 text-gray-600">
+              NutriNet leverages AI to transform personal glucose data into actionable insights, 
+              empowering individuals to manage and prevent diabetes.
+            </p>
+            <div className="mt-10 flex items-center gap-x-6">
+            <Link href="/upload">
+              <span
+                className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                Get started
+              </span>
+            </Link>
+            <Link href="/team">
+              <span className="text-sm font-semibold leading-6 text-gray-900">
+                Meet the Team 
+                <span aria-hidden="true"> → </span>
+              </span>
+            </Link>
+            </div>
+          </div>
+        </div>
+        <div className="relative lg:col-span-5 lg:-mr-8 xl:absolute xl:inset-0 xl:left-1/2 xl:mr-0">
+          <img
+            className="aspect-[3/2] w-full bg-gray-50 object-cover lg:absolute lg:inset-0 lg:aspect-auto lg:h-full"
+            src="https://images.unsplash.com/photo-1498758536662-35b82cd15e29?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2102&q=80"
+            alt=""
+          />
         </div>
       </div>
-
-    </main>
+    </div>
   )
 }
+
