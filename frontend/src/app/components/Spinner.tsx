@@ -2,7 +2,7 @@
 export function Spinner() {
     return (
       <div className="flex justify-center items-center h-screen flex-col">
-        <div className="border-t-8 border-blue-500 rounded-full animate-spin w-52 h-52"></div>
+        <div className="border-t-8 border-green-500 rounded-full animate-spin w-52 h-52"></div>
         <p className="mt-8 text-2xl font-mono">Analysis loading, this may take a few minutes...</p>
         <style jsx>{`
           @keyframes spin {
