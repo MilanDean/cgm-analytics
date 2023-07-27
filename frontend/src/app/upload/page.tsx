@@ -3,7 +3,6 @@
 import { ChangeEvent, useState, useEffect } from 'react';
 import { useRouter } from "next/navigation";
 import axios from 'axios';
-import Image from 'next/image';
 import TopNav from '../components/TopNav';
 import UserAgreement from '../components/UserAgreement';
 
@@ -11,8 +10,12 @@ export default function Upload() {
   const [accepted, setAccepted] = useState(false);
   const [open, setOpen] = useState(true);
   const [file, setFile] = useState<File | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [age, setAge] = useState('');
   const [showButton, setShowButton] = useState(false);
   const router = useRouter();
+
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,13 +73,43 @@ export default function Upload() {
   }, [accepted]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-5 m-2">
-      <TopNav />
-      <div className="flex flex-col items-center justify-center">
+    <div className="flex flex-col h-screen">
+      <div className="mt-4 mb-auto">
+        <TopNav />
+      </div>
+      <div className="flex flex-col items-center justify-center mb-auto">
         <UserAgreement isOpen={open} setOpen={setOpen} setAccepted={setAccepted} />
-        <form className="w-full max-w-lg p-8 rounded-lg shadow-lg bg-transparent border-2 border-black" onSubmit={handleSubmit}>
-          <div className="p-6 mb-4">
-            <label htmlFor="fileInput" className="text-black font-bold">
+        <form className="w-full max-w-3xl p-8 rounded-lg shadow-lg bg-transparent" onSubmit={handleSubmit}>
+          <h1 className="text-3xl text-gray-600 font-bold text-center mb-8">CGM Data Upload</h1>
+          <hr className="mb-8" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <input
+              id="firstName"
+              type="text"
+              className="w-full p-2 rounded border border-gray-300"
+              placeholder="First Name"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+            />
+            <input
+              id="lastName"
+              type="text"
+              className="w-full p-2 rounded border border-gray-300"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={e => setLastName(e.target.value)}
+            />
+          </div>
+          <input
+            id="age"
+            type="number"
+            className="w-full p-2 rounded border border-gray-300 mb-8"
+            placeholder="Age"
+            value={age}
+            onChange={e => setAge(e.target.value)}
+          />
+          <div className="mb-4">
+            <label htmlFor="fileInput" className="text-gray-600 font-bold block mb-2">
               Select a file to upload:
             </label>
             <input
@@ -88,10 +121,10 @@ export default function Upload() {
             />
           </div>
           <div className='flex items-center justify-center py-3'>
-          {showButton && (
+            {showButton && (
               <button
                 type="submit"
-                className="bg-black text-white px-4 py-2 scale-125 rounded hover:bg-blue-600"
+                className="bg-green-600 text-white px-4 py-2 scale-125 rounded hover:bg-green-900"
                 disabled={!accepted}
               >
                 Upload
@@ -100,26 +133,5 @@ export default function Upload() {
           </div>
         </form>
       </div>
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify- dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-3 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://www.ischool.berkeley.edu/"
-            target="/"
-            rel="noopener noreferrer"
-          >
-            By:{' '}
-            <Image
-              src="/berkeleyischool-logo.svg"
-              alt="UC Berkeley"
-              className="dark:invert"
-              width={150}
-              height={18}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-    </main>
-  );
-}
+    </div>
+  )};
