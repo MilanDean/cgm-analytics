@@ -2,8 +2,9 @@ from botocore.exceptions import ClientError
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from .models import ProcessedDataResponse
-from src.ml_pipeline.helper_functions import preprocess_data, scale_data, plot_daily_predictions
+from src.ml_pipeline.helper_functions import preprocess_data, scale_data, plot_daily_predictions, timeseries_pred, generate_meal_diary_table
 
 import numpy as np
 import pandas as pd
@@ -14,7 +15,6 @@ import boto3
 import datetime
 import io
 import pickle
-
 
 s3 = boto3.client("s3", region_name="us-east-1")
 app = FastAPI(docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
@@ -259,8 +259,11 @@ async def get_csv_file(file_name: str):
 
         download_file_from_s3(bucket_name, file_name)
 
-        df = pd.read_csv(file_name)
-        records = df.head(200).to_dict(orient="records")
+        predicted_meal_data = carb_prediction(filename=file_name).reset_index()
+        df = generate_meal_diary_table(predicted_meal_data)
+        records = df.head(8).to_dict(orient="records")
+        
+        predicted_meal_data.to_pickle(f"{file_name}_meal_data.pkl")
 
         return records
     except Exception as e:
@@ -273,33 +276,52 @@ async def get_visualization(filename: str):
     # Check if the image exists in S3
     try:
         s3.head_object(Bucket=bucket_name, Key=f"{filename}_prediction.png")
-        prediction_url = s3.generate_presigned_url(
+        prediction_url_bar = s3.generate_presigned_url(
             "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction.png"},
+            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction_bar.png"},
             ExpiresIn=3600,
         )
-        print("Located previously generated prediction. Loading into frontend...")
+        prediction_url_line = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction_line.png"},
+            ExpiresIn=3600,
+        )
+        print("Located previously generated predictions. Loading into frontend...")
     except ClientError:
+        # Need to get data from S3 and then read the data from the object Body before
+        # converting to pandas dataframe
+        data = s3.get_object(Bucket=bucket_name, Key=f"{filename}")
+        df = pd.read_csv(io.BytesIO(data["Body"].read()))
+        df['timestamp'] = pd.to_datetime(df['Time'])
 
         print("Loading carb data...")
-        predicted_meal_data = carb_prediction(filename=filename)
+        predicted_meal_data = pd.read_pickle(f"{filename}_meal_data.pkl")
 
-        print("Loading prediction plot...")
+        print("Loading carb estimation plot...")
         plot_daily_predictions(predicted_meal_data, "carbPrediction.png")
 
-        print("Uploading Prediction to S3 bucket...")
-        upload_file_to_s3(bucket_name, f"{filename}_prediction.png", "carbPrediction.png")
+        print("Loading prediction plot...")
+        timeseries_pred(df, predicted_meal_data, "predictionPlot.png")
 
-        print("Generating presigned URL...")
-        prediction_url = s3.generate_presigned_url(
+        print("Uploading Carb Estimation Plot to S3 bucket...")
+        upload_file_to_s3(bucket_name, f"{filename}_prediction_bar.png", "carbPrediction.png")
+
+        print("Uploading Prediction Plot to S3 bucket...")
+        upload_file_to_s3(bucket_name, f"{filename}_prediction_line.png", "predictionPlot.png")
+
+        print("Generating presigned URLs...")
+        prediction_url_bar = s3.generate_presigned_url(
             "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction.png"},
+            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction_bar.png"},
+            ExpiresIn=3600,
+        )
+        prediction_url_line = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction_line.png"},
             ExpiresIn=3600,
         )
 
-        print(f"Success! Loaded prediction url: {prediction_url}")
-
-    return {"prediction_url": prediction_url}
+    return {"carb_estimate_url": prediction_url_bar, "prediction_url": prediction_url_line}
 
 
 create_bucket(bucket_name)
