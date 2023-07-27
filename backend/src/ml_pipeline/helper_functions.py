@@ -2,6 +2,7 @@ from .modeling_util import *
 from .features import *
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 def raw_to_interp(sub_df):
     sub_df['timestamp'] = pd.to_datetime(sub_df.Time)
@@ -126,7 +127,7 @@ def plot_daily_predictions(meal_data, plotname):
     meals_per_day = meal_data.groupby('day')[['predictions', 'carb_preds']].sum().reset_index()
     meals_per_day.columns = ['Day', 'Meals', 'Total Carbs']
 
-    plt.subplots(figsize=(10,5))
+    plt.subplots(figsize=(6,6))
     plt.subplot(211)
     plt.bar(meals_per_day.Day, meals_per_day.Meals)
     plt.xticks(rotation = 45)
@@ -145,15 +146,42 @@ def plot_daily_predictions(meal_data, plotname):
     plt.savefig(plotname)
     
 
+def timeseries_pred(file, meal_data, plotname):
+
+    plt.figure(figsize = (15,5))
+    plt.plot(file.timestamp, file.CGM, label='Glucose', linewidth=3)
+    plt.bar(meal_data.start_block, meal_data.carb_preds, color='red', width=0.025, label='meal carbs(g)')
+    plt.scatter(meal_data.start_block, meal_data.carb_preds, color='red')
+    plt.axhline(y=70, color = 'green', linestyle='--', label = 'Target CGM Range')
+    plt.axhline(y=180, color = 'green', linestyle='--')
+    plt.legend()
+
+    plt.plot()
+    plt.tight_layout()
+    plt.savefig(plotname)
+
+
 def generate_meal_diary_table(meal_data):
 
+    print("loading new diary")
     meal_data['Date'] = [pd.to_datetime(x).date().strftime(format='%m/%d/%Y') for x in meal_data.start_block]
+    print("Created date")
     meal_data['Meal Time'] = [pd.to_datetime(x).time().strftime(format='%H:%M') for x in meal_data.start_block]
+    print("Created meal time")
     meal_data['Carbs (g)'] = round(meal_data.carb_preds)
-    conditions = [meal_data.Carbs < 28,
-                  (meal_data.Carbs >= 28) & (meal_data.Carbs < 75),
-                  (meal_data.Carbs >= 75)]
-    selections = ['small meal', 'light/medium meal', 'large meal']
-    meal_data['Meal Size'] = np.select(conditions, selections)
+    print("Created carbs")
+    meal_data['Meal Size'] = meal_data['Carbs (g)'].apply(categorize_meal)
+    print("Created conditions")
     display_df = meal_data[['Date', 'Meal Time', 'Carbs (g)', 'Meal Size']]
-    display_df.to_csv('./meal_prediction_table.csv', index = False)
+    
+    return display_df
+
+
+def categorize_meal(val):
+
+    if val < 28:
+        return 'small meal'
+    elif 28 <= val < 75:
+        return 'light/medium meal'
+    else:
+        return 'large meal'
