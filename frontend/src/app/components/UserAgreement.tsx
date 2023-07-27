@@ -55,7 +55,7 @@ export default function UserAgreement({ isOpen, setOpen, setAccepted }: UserAgre
                     onClick={() => setOpen(false)}
                     ref={cancelButtonRef}
                   >
-                    Cancel
+                    I do not consent
                   </button>
                   <button
                     type="button"
