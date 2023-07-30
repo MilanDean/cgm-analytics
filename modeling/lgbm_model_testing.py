@@ -82,8 +82,8 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    train_df = pd.read_csv('../data/output/features/60minWindow_train_set.csv')
-    test_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv') # I know it says test, but its val
+    train_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_val_set.csv') # I know it says test, but its val
     #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
@@ -181,7 +181,8 @@ if __name__ == '__main__':
                                    num_leaves=lgbm_clf.best_estimator_.get_params()['num_leaves'],
                                    max_bin=lgbm_clf.best_estimator_.get_params()['max_bin'],
                                    learning_rate=lgbm_clf.best_estimator_.get_params()['learning_rate'],
-                                   random_state=1, n_jobs=-1, metric='roc_auc')
+                                   random_state=1, n_jobs=-1,
+                               metric='roc_auc')
 
     # SKLEARN RFE --- Reduce to only top features
     # selector = RFECV(clone(lgbmF_clf), step=1, cv=pds, n_jobs=-1)

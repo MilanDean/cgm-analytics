@@ -110,7 +110,7 @@ def preprocess_data(file):
     return reduced_feature_set
 
 def scale_data(reduced_feature_set):
-    scalar = pickle.load(open('../data/output/models/standard_scaler_mealDetection.pickle', 'rb'))
+    scalar = pickle.load(open('../data/output/models/final_imbalanced_models/standard_scaler_mealDetection.pickle', 'rb'))
     scaled_features = scalar.transform(reduced_feature_set.iloc[:, :-5])
     scaled_features = pd.DataFrame(scaled_features)
     scaled_features.columns = reduced_feature_set.iloc[:, :-5].columns
@@ -177,12 +177,13 @@ def create_raw_data_table(file):
     file[['Time', 'CGM', 'Glucose Range']].to_csv('nutriNet_Raw_data_table.csv', index = False)
 
 if __name__ == '__main__':
-    file = pd.read_csv('../data/input/synthetic_dataset/results/adult#008.csv')
+    file = pd.read_csv('../data/input/synthetic_dataset/results/adult#001.csv')
     create_raw_data_table(file) # save raw data for site visual
 
-    meal_detect_model = pickle.load(open('../data/output/models/lgbm_mealDetection_model.pickle', 'rb'))
-    carb_estimate_model = pickle.load(open('../data/output/models/svr_model_carbEstimate.pickle', 'rb'))
-    rfe_results = pd.read_csv('../data/output/training/imbal_tuneToPrec/lgbm_features_20230716.csv') #../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    meal_detect_model = pickle.load(open('../data/output/models/final_imbalanced_models/lgbm_mealDetection_model.pickle', 'rb'))
+    carb_estimate_model = pickle.load(open('../data/output/models/final_imbalanced_models/svr_model_carbEstimate.pickle', 'rb'))
+    rfe_results = pd.read_csv('../data/output/models/final_imbalanced_models/lgbm_features_20230716.csv') #../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    carbEst_results = pd.read_csv('../data/output/models/final_imbalanced_models/svr_features_20230723.csv')
     age = input('enter age of participant: ')
     # Timeit - start
     starttime = timeit.default_timer()
@@ -195,7 +196,7 @@ if __name__ == '__main__':
 
     # Select features from RFE
     selected_features = rfe_results.feature.to_list()
-    optimal_threshold =  0.27939#0.78054 #0.62062
+    optimal_threshold = 0.2793919 #0.62062
 
     # Set-up Prediction dataset
     X = scaled_features.iloc[:,:-5]
@@ -207,7 +208,6 @@ if __name__ == '__main__':
 
     # Now do the carb estimation
     meal_data = scaled_features[scaled_features.predictions == 1]
-    carbEst_results = pd.read_csv('../data/output/training/svr_features_20230723.csv')
     carbEst_features = carbEst_results.feature.to_list()
     X = meal_data[carbEst_features]
     preds = carb_estimate_model.predict(X)

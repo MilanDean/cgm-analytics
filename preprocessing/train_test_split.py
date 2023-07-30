@@ -65,7 +65,7 @@ def set_up_train_test_data(train_df, test_df):
 
 if __name__ == '__main__':
     balance = False
-    df = pd.read_csv('../data/output/features/synthetic_dataset_features_20230630_60minWindows.csv')
+    df = pd.read_csv('../data/output/features/synthetic_dataset_features_20230630_60minWindows_30minOverlap.csv')
     df.head()
 
     # Clean Data
@@ -124,9 +124,9 @@ if __name__ == '__main__':
     save_path = '../data/output/features/'
     os.makedirs(save_path, exist_ok=True)
 
-    # save standard scalar
-    scalerfile = '../data/output/models/standard_scaler_mealDetection.pickle'
-    pickle.dump(standScale, open(scalerfile, 'wb'))
+    # # save standard scalar
+    # scalerfile = '../data/output/models/standard_scaler_mealDetection.pickle'
+    # pickle.dump(standScale, open(scalerfile, 'wb'))
 
     scaled_train = train_X.copy()
     scaled_train['subject'] = train_df.subject.values
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     scaled_train['start_block'] = train_df.start_block.values
     scaled_train['end_block'] = train_df.end_block.values
     scaled_train['CHO_total'] = train_df.CHO_total.values
-    scaled_train.to_csv(os.path.join(save_path, '60minWindow_imbal_train_set.csv'), index = False)
+    scaled_train.to_csv(os.path.join(save_path, '60minWindow_30minOverlap_imbal_train_set.csv'), index = False)
 
     scaled_test = test_X.copy()
     scaled_test['subject'] = test_df.subject.values
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     scaled_test['start_block'] = test_df.start_block.values
     scaled_test['end_block'] = test_df.end_block.values
     scaled_test['CHO_total'] = test_df.CHO_total.values
-    scaled_test.to_csv(os.path.join(save_path, '60minWindow_imbal_test_set.csv'), index=False)
+    scaled_test.to_csv(os.path.join(save_path, '60minWindow_30minOverlap_imbal_test_set.csv'), index=False)
 
     scaled_val = val_X.copy()
     scaled_val['subject'] = val_df.subject.values
@@ -150,4 +150,4 @@ if __name__ == '__main__':
     scaled_val['start_block'] = val_df.start_block.values
     scaled_val['end_block'] = val_df.end_block.values
     scaled_val['CHO_total'] = val_df.CHO_total.values
-    scaled_val.to_csv(os.path.join(save_path, '60minWindow_imbal_val_set.csv'), index=False)
+    scaled_val.to_csv(os.path.join(save_path, '60minWindow_30minOverlap_imbal_val_set.csv'), index=False)
