@@ -180,8 +180,10 @@ def generate_meal_diary_table(meal_data):
 def categorize_meal(val):
 
     if val < 28:
-        return 'small meal'
-    elif 28 <= val < 75:
-        return 'light/medium meal'
+        return 'Snack'
+    elif 28 <= val < 45:
+        return 'Small Meal'
+    elif 45 <= val < 75:
+        return 'Medium Meal'
     else:
-        return 'large meal'
+        return 'Large Meal'

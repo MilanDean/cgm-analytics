@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # Select features from RFE
     selected_features = rfe_results.feature.to_list()
-    optimal_threshold = 0.62062
+    optimal_threshold = 0.2793919
 
     # Set-up Prediction dataset
     X = scaled_features.iloc[:,:-5]
