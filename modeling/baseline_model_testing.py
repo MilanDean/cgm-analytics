@@ -80,8 +80,8 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    train_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_imbal_train_set.csv')
-    test_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_imbal_val_set.csv') # I know it says test, but its val
+    train_df = pd.read_csv('../data/output/features/60minWindow_imbal_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_imbal_val_set.csv') # I know it says test, but its val
     #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     # Use GridSearch
     lr_clf = GridSearchCV(estimator=LogisticRegression(random_state=1, penalty='l1',
                                                        solver='liblinear', class_weight='balanced'),
-                          param_grid={'C': np.logspace(-4, 4, 20)}, n_jobs=-1, cv=pds, scoring='roc_auc') # cv = sgkf
+                          param_grid={'C': np.logspace(-4, 4, 20)}, n_jobs=-1, cv=pds, scoring='precision') # cv = sgkf
     # Fit the model
     # lr_clf.fit(train_X, train_Y, groups=group_array)
     lr_clf.fit(combined_X, combined_Y, groups=group_array)

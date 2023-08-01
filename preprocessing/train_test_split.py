@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GroupShuffleSplit
 import seaborn as sns
 import os
-from modeling.modeling_util import *
+#from modeling.modeling_util import *
 import pickle
 
 def split_train_test(df, test_size = 0.2):
@@ -62,10 +62,22 @@ def set_up_train_test_data(train_df, test_df):
 
     return train_X, train_Y, test_X, test_Y, standScale
 
+def balance_onSubject(df):
+    results = []
+    for subject in df.subject.unique():
+        sub_df = df[df.subject == subject]
+        n_pos = sub_df[sub_df.meal == 1].shape[0]
+        if n_pos < 1: print('{} has no meals'.format(subject))
+        neg_df = sub_df[sub_df.meal == 0]
+        neg_df_sampled = neg_df.sample(n_pos)
+        features_balanced = pd.concat([sub_df[sub_df.meal == 1], neg_df_sampled], axis=0)
+        results.append(features_balanced)
+
+    return pd.concat(results)
 
 if __name__ == '__main__':
     balance = False
-    df = pd.read_csv('../data/output/features/synthetic_dataset_features_20230630_60minWindows_30minOverlap.csv')
+    df = pd.read_csv('../data/output/features/synthetic_dataset_features_20230630.csv')
     df.head()
 
     # Clean Data

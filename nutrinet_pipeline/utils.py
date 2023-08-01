@@ -110,7 +110,7 @@ def preprocess_data(file):
     return reduced_feature_set
 
 def scale_data(reduced_feature_set):
-    scalar = pickle.load(open('../data/output/models/final_imbalanced_models/standard_scaler_mealDetection.pickle', 'rb'))
+    scalar = pickle.load(open('../data/output/models/standard_scaler_mealDetection.pickle', 'rb'))
     scaled_features = scalar.transform(reduced_feature_set.iloc[:, :-5])
     scaled_features = pd.DataFrame(scaled_features)
     scaled_features.columns = reduced_feature_set.iloc[:, :-5].columns
@@ -177,13 +177,13 @@ def create_raw_data_table(file):
     file[['Time', 'CGM', 'Glucose Range']].to_csv('nutriNet_Raw_data_table.csv', index = False)
 
 if __name__ == '__main__':
-    file = pd.read_csv('../data/input/synthetic_dataset/results/adult#001.csv')
+    file = pd.read_csv('../data/output/synthetic_dataset_raw_wMeals/adult#001.csv')
     create_raw_data_table(file) # save raw data for site visual
 
-    meal_detect_model = pickle.load(open('../data/output/models/final_imbalanced_models/lgbm_mealDetection_model.pickle', 'rb'))
-    carb_estimate_model = pickle.load(open('../data/output/models/final_imbalanced_models/svr_model_carbEstimate.pickle', 'rb'))
-    rfe_results = pd.read_csv('../data/output/models/final_imbalanced_models/lgbm_features_20230716.csv') #../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
-    carbEst_results = pd.read_csv('../data/output/models/final_imbalanced_models/svr_features_20230723.csv')
+    meal_detect_model = pickle.load(open('../data/output/models/lgbm_mealDetection_model.pickle', 'rb'))
+    # carb_estimate_model = pickle.load(open('../data/output/models/final_imbalanced_models/svr_model_carbEstimate.pickle', 'rb'))
+    rfe_results = pd.read_csv('../data/output/training/lgbm_features_20230731.csv') #../data/output/training/training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    # carbEst_results = pd.read_csv('../data/output/models/final_imbalanced_models/svr_features_20230723.csv')
     age = input('enter age of participant: ')
     # Timeit - start
     starttime = timeit.default_timer()

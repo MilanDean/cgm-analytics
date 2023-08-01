@@ -84,9 +84,9 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
 
 if __name__ == '__main__':
     balance = True
-    train_df = pd.read_csv('../data/output/features/60minWindow_train_set.csv')
-    test_df = pd.read_csv('../data/output/features/60minWindow_test_set.csv') # I know it says test, but its val
-    val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
+    train_df = pd.read_csv('../data/output/features/60minWindow_imbal_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_imbal_test_set.csv') # I know it says test, but its val
+    val_df = pd.read_csv('../data/output/features/60minWindow_imbal_val_set.csv')
     rfe_results = pd.read_csv('../data/output/training/svr_features_20230723.csv')
     selected_features = rfe_results.feature.to_list()
 

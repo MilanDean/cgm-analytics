@@ -85,9 +85,9 @@ if __name__ == '__main__':
     train_df = pd.read_csv('../data/output/features/60minWindow_imbal_train_set.csv')
     test_df = pd.read_csv('../data/output/features/60minWindow_imbal_test_set.csv') # I know it says test, but its val
     val_df = pd.read_csv('../data/output/features/60minWindow_imbal_val_set.csv')
-    rfe_results = pd.read_csv('../data/output/training/imbal_tuneToPrec/lgbm_features_20230716.csv') #training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
+    rfe_results = pd.read_csv('../data/output/training/lgbm_tunedToPrecision/lgbm_features_20230730.csv') #training_20230702/tuned_to_precision/60minWindow/lgbm_features_20230709.csv')
     selected_features = rfe_results.feature.to_list()
-    optimal_threshold = 0.2793919 #(Imbalanced - precision) # From J-index from optimal model
+    optimal_threshold = 0.5#0.2793919 #(Imbalanced - precision) # From J-index from optimal model
 
     # format train and test datasets correctly
     train_X = train_df.iloc[:,:-5]

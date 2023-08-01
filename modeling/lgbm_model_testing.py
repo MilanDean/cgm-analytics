@@ -81,9 +81,9 @@ def plot_roc_curves(train_Y, train_probs, test_Y, test_probs):
         datetime.today().strftime('%Y%m%d')))
 
 if __name__ == '__main__':
-    balance = True
-    train_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_train_set.csv')
-    test_df = pd.read_csv('../data/output/features/60minWindow_30minOverlap_val_set.csv') # I know it says test, but its val
+    balance = False
+    train_df = pd.read_csv('../data/output/features/60minWindow_imbal_train_set.csv')
+    test_df = pd.read_csv('../data/output/features/60minWindow_imbal_val_set.csv') # I know it says test, but its val
     #val_df = pd.read_csv('../data/output/features/60minWindow_val_set.csv')
 
     # format train and test datasets correctly
@@ -145,7 +145,7 @@ if __name__ == '__main__':
 
     # SKLEARN RFE --- Reduce to only top features
     selector = RFECV(estimator= LGBMClassifier(objective='binary', #boosting_type = 'gbdt'
-                     class_weight='balanced', metric='roc_auc'), step=1, cv=pds, n_jobs=-1)
+                     class_weight='balanced', metric='precision'), step=1, cv=pds, n_jobs=-1)
     rfe_out = selector.fit(combined_X, combined_Y, groups=group_array)
     rfe_combined_X = combined_X.iloc[:, rfe_out.support_]
     rfe_train_X = train_X.iloc[:, rfe_out.support_]
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     n_estimators = [int(x) for x in np.linspace(start=10, stop=250, num=10)]
     max_depth = [int(x) for x in np.linspace(10, 100, num=10)]
     max_depth.append(None)
-    boosting_type = ['gbdt', 'rf', 'dart']
+    boosting_type = ['gbdt']#, 'rf', 'dart']
     learning_rate = [0.001, 0.01, 0.1]
     n_leaves = [6, 8, 12, 16, 20]
     max_bin = [255, 510]
@@ -162,14 +162,14 @@ if __name__ == '__main__':
                                         #'time_period_before', 'time_period_after']]}
     # Use GridSearch
     lgbm_clf = GridSearchCV(estimator= LGBMClassifier(objective='binary', #boosting_type = 'gbdt'
-                     class_weight='balanced', metric='roc_auc'),
+                     class_weight='balanced', metric='precision'),
                     param_grid={'n_estimators': n_estimators,
                                 'max_depth': max_depth,
                                 'boosting_type': boosting_type,
                                 'learning_rate': learning_rate,
                                 'num_leaves': n_leaves,
                                 'max_bin': max_bin}, n_jobs=-1, cv= pds,#sgkf,
-                            scoring='roc_auc')
+                            scoring='precision')
 
     # Fit the model
     # lgbm_clf.fit(train_X, train_Y, groups=train_df.subject)
@@ -182,7 +182,7 @@ if __name__ == '__main__':
                                    max_bin=lgbm_clf.best_estimator_.get_params()['max_bin'],
                                    learning_rate=lgbm_clf.best_estimator_.get_params()['learning_rate'],
                                    random_state=1, n_jobs=-1,
-                               metric='roc_auc')
+                               metric='precision')
 
     # SKLEARN RFE --- Reduce to only top features
     # selector = RFECV(clone(lgbmF_clf), step=1, cv=pds, n_jobs=-1)
