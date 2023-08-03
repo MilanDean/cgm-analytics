@@ -14,13 +14,21 @@ export default function Upload() {
   const [lastName, setLastName] = useState('');
   const [age, setAge] = useState('');
   const [showButton, setShowButton] = useState(false);
+  const [isAgeInvalid, setIsAgeInvalid] = useState(false);
   const router = useRouter();
 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!file) {
+    // Check if age is empty to handle case on submission
+    if (age === '') {
+      setIsAgeInvalid(true);
+      return;
+    }
+
+    // Check if file or age is not provided
+    if (!file || !age) {
       return;
     }
 
@@ -33,10 +41,11 @@ export default function Upload() {
     formData.append('file', file, file.name);
 
     localStorage.setItem('uploadedFilename', file.name);
+    localStorage.setItem('userAge', age);
 
     try {
       // Send the file to the FastAPI backend for processing
-      const response = await axios.post('https://api.nutrinet-ai.com/api/analysis', formData, {
+      const response = await axios.post('https://www.nutrinet-ai.com/api/analysis', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -103,7 +112,7 @@ export default function Upload() {
           <input
             id="age"
             type="number"
-            className="w-full p-2 rounded border border-gray-300 mb-8"
+            className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${isAgeInvalid ? 'border-red-500' : 'border-gray-300'} placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
             placeholder="Age"
             value={age}
             onChange={e => setAge(e.target.value)}
@@ -124,7 +133,7 @@ export default function Upload() {
             {showButton && (
               <button
                 type="submit"
-                className="bg-green-600 text-white px-4 py-2 scale-125 rounded hover:bg-green-900"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 disabled={!accepted}
               >
                 Upload

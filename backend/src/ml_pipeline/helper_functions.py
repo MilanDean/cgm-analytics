@@ -93,13 +93,11 @@ FEATURE_NAMES = ['mean', 'std', 'interdaycv', 'TOR', 'TIR', 'PIR', 'LBGI', 'time
        'dynamic_risk_max_after', 'dynamic_risk_mean_after', 'age', 'subject',
        'meal', 'start_block', 'end_block', 'CHO_total']
 
-def preprocess_data(file):
-    # preprocess
+def preprocess_data(file, age: int):
     interp_data = raw_to_interp(file)
     feature_set = derive_features(interp_data, subject = 'test1')
     feature_set = feature_set.rename(columns = {'label(meal)':'meal'})
-    # Todo - Need to figure out a better way to implement this later
-    feature_set['age'] = 32
+    feature_set['age'] = age
     feature_set = feature_set.dropna(axis=0)
     reduced_feature_set = feature_set[FEATURE_NAMES] # only select features without high correlation values
 
@@ -163,15 +161,10 @@ def timeseries_pred(file, meal_data, plotname):
 
 def generate_meal_diary_table(meal_data):
 
-    print("loading new diary")
     meal_data['Date'] = [pd.to_datetime(x).date().strftime(format='%m/%d/%Y') for x in meal_data.start_block]
-    print("Created date")
     meal_data['Meal Time'] = [pd.to_datetime(x).time().strftime(format='%H:%M') for x in meal_data.start_block]
-    print("Created meal time")
     meal_data['Carbs (g)'] = round(meal_data.carb_preds)
-    print("Created carbs")
     meal_data['Meal Size'] = meal_data['Carbs (g)'].apply(categorize_meal)
-    print("Created conditions")
     display_df = meal_data[['Date', 'Meal Time', 'Carbs (g)', 'Meal Size']]
     
     return display_df
