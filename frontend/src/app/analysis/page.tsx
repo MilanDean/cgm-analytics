@@ -44,16 +44,18 @@ export default function Analysis(): JSX.Element {
   // Retrieving the filename stored at /upload local storage
   // Get the filename from local storage
   let filename: string;
+  let age: string;
   if (typeof window !== 'undefined') {
       filename = window.localStorage.getItem('uploadedFilename') || "";
+      age = window.localStorage.getItem('userAge') || "";
   }
 
   const fetchData = useCallback(() => {
     setIsLoading(true);
     setError(null);
 
-    const analysisPromise = axios.get<RowData[]>(`https://api.nutrinet-ai.com/api/analysis/${encodeURIComponent(filename)}`);
-    const visualizationPromise = axios.get<{ carb_estimate_url: string, prediction_url: string }>(`https://api.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`);
+    const analysisPromise = axios.get<RowData[]>(`https://www.nutrinet-ai.com/api/analysis/${encodeURIComponent(filename)}?age=${age}`);
+    const visualizationPromise = axios.get<{ carb_estimate_url: string, prediction_url: string }>(`https://www.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`);
   
     Promise.all([analysisPromise, visualizationPromise])
       .then(([analysisResponse, visualizationResponse]) => {
@@ -92,7 +94,7 @@ export default function Analysis(): JSX.Element {
   useInterval(() => {
     if (isLoading) {
       fetchData();
-      setElapsedTime((prevElapsedTime) => prevElapsedTime + 3000);
+      setElapsedTime((prevElapsedTime) => prevElapsedTime + 2000);
     }
   }, 2000);
 
