@@ -1,6 +1,6 @@
 from botocore.exceptions import ClientError
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from .models import ProcessedDataResponse
@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 
-def preprocess_feature_set(preprocess_data: preprocess_data, filename: str):
+def preprocess_feature_set(preprocess_data: preprocess_data, filename: str, age: int):
 
     """Calls preprocessing function that modifies the adults raw CGM 
        data into a standardized, reduced feature set for prediction."""
@@ -50,18 +50,18 @@ def preprocess_feature_set(preprocess_data: preprocess_data, filename: str):
     download_file_from_s3(bucket_name, filename)
     df = pd.read_csv(filename)
 
-    reduced_feature_set = preprocess_data(df)
+    reduced_feature_set = preprocess_data(df, age=age)
     scaled_feature_set = scale_data(reduced_feature_set, SCALAR)
-
+    
     return scaled_feature_set
 
 
-def meal_prediction(filename: str):
+def meal_prediction(filename: str, age: int):
 
     BUCKET_NAME = "nutrinet-ml-models"
     RFE_RESULTS = s3.get_object(Bucket=BUCKET_NAME, Key="lgbm_features_20230716.csv")['Body'].read()
     LGBM_MEAL_DETECTION_MODEL = pickle.loads(s3.get_object(Bucket=BUCKET_NAME, Key="lgbm_mealDetection_model.pickle")['Body'].read())
-    scaled_feature_set = preprocess_feature_set(preprocess_data=preprocess_data, filename=filename)
+    scaled_feature_set = preprocess_feature_set(preprocess_data=preprocess_data, filename=filename, age=age)
 
     str_results = RFE_RESULTS.decode('utf-8')
     data = io.StringIO(str_results)
@@ -77,13 +77,13 @@ def meal_prediction(filename: str):
     return scaled_feature_set
 
 
-def carb_prediction(filename: str):
+def carb_prediction(filename: str, age: int):
 
     BUCKET_NAME = "nutrinet-ml-models"
     CARB_ESTIMATE_FEATURES = s3.get_object(Bucket=BUCKET_NAME, Key="svr_features_20230723.csv")['Body'].read()
     SVR_CARB_MODEL = pickle.loads(s3.get_object(Bucket=BUCKET_NAME, Key="svr_model_carbEstimate.pickle")['Body'].read())
 
-    carb_feature_set = meal_prediction(filename)
+    carb_feature_set = meal_prediction(filename, age=age)
     meal_data = carb_feature_set[carb_feature_set.predictions == 1]
 
     carb_df = pd.read_csv(io.BytesIO(CARB_ESTIMATE_FEATURES))
@@ -252,14 +252,14 @@ def download_file_from_s3(bucket: str, key: str):
 
 
 @app.get("/api/analysis/{file_name}")
-async def get_csv_file(file_name: str):
+async def get_csv_file(file_name: str, age: int = Query(None)):
     try:
         if not check_if_file_exists(bucket_name, file_name):
             raise HTTPException(status_code=404, detail="File not found")
 
         download_file_from_s3(bucket_name, file_name)
 
-        predicted_meal_data = carb_prediction(filename=file_name).reset_index()
+        predicted_meal_data = carb_prediction(filename=file_name, age=age).reset_index()
         df = generate_meal_diary_table(predicted_meal_data)
         records = df.head(8).to_dict(orient="records")
         
