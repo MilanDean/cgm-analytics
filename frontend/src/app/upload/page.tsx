@@ -45,7 +45,7 @@ export default function Upload() {
 
     try {
       // Send the file to the FastAPI backend for processing
-      const response = await axios.post('https://www.nutrinet-ai.com/api/analysis', formData, {
+      const response = await axios.post('https://api.nutrinet-ai.com/api/analysis', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

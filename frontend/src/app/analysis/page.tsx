@@ -54,8 +54,8 @@ export default function Analysis(): JSX.Element {
     setIsLoading(true);
     setError(null);
 
-    const analysisPromise = axios.get<RowData[]>(`https://www.nutrinet-ai.com/api/analysis/${encodeURIComponent(filename)}?age=${age}`);
-    const visualizationPromise = axios.get<{ carb_estimate_url: string, prediction_url: string }>(`https://www.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`);
+    const analysisPromise = axios.get<RowData[]>(`https://api.nutrinet-ai.com/api/analysis/${encodeURIComponent(filename)}?age=${age}`);
+    const visualizationPromise = axios.get<{ carb_estimate_url: string, prediction_url: string }>(`https://api.nutrinet-ai.com/api/visualization/${encodeURIComponent(filename)}`);
   
     Promise.all([analysisPromise, visualizationPromise])
       .then(([analysisResponse, visualizationResponse]) => {
