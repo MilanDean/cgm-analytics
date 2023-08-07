@@ -162,6 +162,8 @@ def timeseries_pred(file, meal_data, plotname):
     plt.savefig(plotname)
 
 def timeseries_pred_plotly(file, meal_data, plotname):
+    file['CGM'] = round(file.CGM, 2)
+    meal_data['carb_preds'] = round(meal_data.carb_preds, 2)
     # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -186,8 +188,8 @@ def timeseries_pred_plotly(file, meal_data, plotname):
     fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(70, len(file.timestamps)), showlegend=False,
                              line=dict(color='grey', width=4, dash='dash')))
 
-    fig.add_trace(go.Bar(x=meal_data[meal_data.CHO_total > 0]['start_block'],
-                         y=meal_data[meal_data.CHO_total > 0]["carb_preds"],
+    fig.add_trace(go.Bar(x=meal_data.carb_preds['start_block'],
+                         y=meal_data.carb_preds["carb_preds"],
                          marker={'color': 'green'},
                          name='Meal - Carbs (g)',
 
