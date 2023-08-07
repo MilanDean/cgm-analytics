@@ -128,16 +128,18 @@ def plot_daily_predictions(meal_data, plotname):
 
     plt.subplots(figsize=(6,6))
     plt.subplot(211)
-    plt.bar(meals_per_day.Day, meals_per_day.Meals)
+    plt.bar(meals_per_day.Day, meals_per_day.Meals, color = 'green')
     plt.xticks(rotation = 45)
+    plt.title('Total Meals per Day')
     plt.ylabel('Meals per Day')
 
     plt.subplot(212)
-    plt.bar(meals_per_day.Day, meals_per_day['Total Carbs'])
+    plt.bar(meals_per_day.Day, meals_per_day['Total Carbs'], color = 'green')
     plt.xticks(rotation = 45)
     plt.ylabel('Total CHO (g) per Day')
-    plt.axhline(y=150, color = 'r', linestyle='--')
-    plt.axhline(y=250, color='r', linestyle='--',label='Healthy Carb Amount')
+    plt.title('Total Carbs (g) per Day')
+    plt.axhline(y=150, color = 'grey', linestyle='--')
+    plt.axhline(y=250, color='grey', linestyle='--',label='Healthy Carb Amount')
 
     plt.legend()
     plt.tight_layout()
@@ -149,10 +151,10 @@ def timeseries_pred(file, meal_data, plotname):
 
     plt.figure(figsize = (15,5))
     plt.plot(file.timestamp, file.CGM, label='Glucose', linewidth=3)
-    plt.bar(meal_data.start_block, meal_data.carb_preds, color='red', width=0.025, label='meal carbs(g)')
-    plt.scatter(meal_data.start_block, meal_data.carb_preds, color='red')
-    plt.axhline(y=70, color = 'green', linestyle='--', label = 'Target CGM Range')
-    plt.axhline(y=180, color = 'green', linestyle='--')
+    plt.bar(meal_data.start_block, meal_data.carb_preds, color='green', width=0.025, label='meal carbs(g)')
+    plt.scatter(meal_data.start_block, meal_data.carb_preds, color='green')
+    plt.axhline(y=70, color = 'grey', linestyle='--', label = 'Target CGM Range')
+    plt.axhline(y=180, color = 'grey', linestyle='--')
     plt.legend()
 
     plt.plot()
@@ -180,13 +182,13 @@ def timeseries_pred_plotly(file, meal_data, plotname):
 
     fig.update_traces(line={'width': 5})
     fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(180, len(file.timestamps)), name='Target Glucose Range',
-                             line=dict(color='green', width=4, dash='dash')))
+                             line=dict(color='grey', width=4, dash='dash')))
     fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(70, len(file.timestamps)), showlegend=False,
-                             line=dict(color='green', width=4, dash='dash')))
+                             line=dict(color='grey', width=4, dash='dash')))
 
     fig.add_trace(go.Bar(x=meal_data[meal_data.CHO_total > 0]['start_block'],
                          y=meal_data[meal_data.CHO_total > 0]["carb_preds"],
-                         marker={'color': 'red'},
+                         marker={'color': 'green'},
                          name='Meal - Carbs (g)',
 
                          ),
