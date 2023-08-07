@@ -1,8 +1,9 @@
 from .modeling_util import *
 from .features import *
-
 import matplotlib.pyplot as plt
-import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 def raw_to_interp(sub_df):
     sub_df['timestamp'] = pd.to_datetime(sub_df.Time)
@@ -135,8 +136,8 @@ def plot_daily_predictions(meal_data, plotname):
     plt.bar(meals_per_day.Day, meals_per_day['Total Carbs'])
     plt.xticks(rotation = 45)
     plt.ylabel('Total CHO (g) per Day')
-    plt.axhline(y=225, color = 'r', linestyle='--')
-    plt.axhline(y=325, color='r', linestyle='--',label='Healthy Carb Amount')
+    plt.axhline(y=150, color = 'r', linestyle='--')
+    plt.axhline(y=250, color='r', linestyle='--',label='Healthy Carb Amount')
 
     plt.legend()
     plt.tight_layout()
@@ -158,6 +159,40 @@ def timeseries_pred(file, meal_data, plotname):
     plt.tight_layout()
     plt.savefig(plotname)
 
+def timeseries_pred_plotly(file, meal_data, plotname):
+    # Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Line(x=file['timestamps'], y=file['CGM'],  # title='Raw CGM Data with Identified Meals',
+                          # markers=True,
+                          name='Glucose (mg/dL)'
+                          ))
+
+    # fig.update_shapes(dict(xref='Glucose (mg/dL)'))
+    fig.update_layout(
+        xaxis_title="Time", yaxis_title="Glucose (mg/dL)",
+        title={
+            'text': 'Raw CGM Data with Identified Meals',
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        })
+
+    fig.update_traces(line={'width': 5})
+    fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(180, len(file.timestamps)), name='Target Glucose Range',
+                             line=dict(color='green', width=4, dash='dash')))
+    fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(70, len(file.timestamps)), showlegend=False,
+                             line=dict(color='green', width=4, dash='dash')))
+
+    fig.add_trace(go.Bar(x=meal_data[meal_data.CHO_total > 0]['start_block'],
+                         y=meal_data[meal_data.CHO_total > 0]["carb_preds"],
+                         marker={'color': 'red'},
+                         name='Meal - Carbs (g)',
+
+                         ),
+                  # secondary_y=True,
+                  )
+    fig.write_image(plotname)
 
 def generate_meal_diary_table(meal_data):
 
