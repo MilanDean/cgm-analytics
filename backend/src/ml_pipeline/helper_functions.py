@@ -1,9 +1,9 @@
 from .modeling_util import *
 from .features import *
 import matplotlib.pyplot as plt
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import plotly.io as py
 
 def raw_to_interp(sub_df):
     sub_df['timestamp'] = pd.to_datetime(sub_df.Time)
@@ -161,18 +161,16 @@ def timeseries_pred(file, meal_data, plotname):
     plt.tight_layout()
     plt.savefig(plotname)
 
-def timeseries_pred_plotly(file, meal_data, plotname):
+
+def timeseries_pred_plotly(file, meal_data, filename):
     file['CGM'] = round(file.CGM, 2)
     meal_data['carb_preds'] = round(meal_data.carb_preds, 2)
-    # Create figure with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    fig.add_trace(go.Line(x=file['timestamps'], y=file['CGM'],  # title='Raw CGM Data with Identified Meals',
-                          # markers=True,
+    fig.add_trace(go.Line(x=file['timestamp'], y=file['CGM'],
                           name='Glucose (mg/dL)'
                           ))
 
-    # fig.update_shapes(dict(xref='Glucose (mg/dL)'))
     fig.update_layout(
         xaxis_title="Time", yaxis_title="Glucose (mg/dL)",
         title={
@@ -180,23 +178,35 @@ def timeseries_pred_plotly(file, meal_data, plotname):
             'x': 0.5,
             'xanchor': 'center',
             'yanchor': 'top'
-        })
+        },
+        template="simple_white",
+        legend=dict(
+            font=dict(size=10),
+            x=1,
+            y=1
+        ),
+        margin=dict(l=50, r=50, b=50, t=50, pad=4))
 
-    fig.update_traces(line={'width': 5})
-    fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(180, len(file.timestamps)), name='Target Glucose Range',
-                             line=dict(color='grey', width=4, dash='dash')))
-    fig.add_trace(go.Scatter(x=file.timestamps, y=np.repeat(70, len(file.timestamps)), showlegend=False,
-                             line=dict(color='grey', width=4, dash='dash')))
+    fig.update_traces(line={'width': 3})
+    fig.add_trace(go.Scatter(x=file.timestamp, y=np.repeat(180, len(file.timestamp)), name='Target Glucose Range',
+                             line=dict(color='darkgrey', width=4, dash='dash')))
+    fig.add_trace(go.Scatter(x=file.timestamp, y=np.repeat(70, len(file.timestamp)), showlegend=False,
+                             line=dict(color='darkgrey', width=4, dash='dash')))
 
-    fig.add_trace(go.Bar(x=meal_data.carb_preds['start_block'],
-                         y=meal_data.carb_preds["carb_preds"],
+    fig.add_trace(go.Bar(x=meal_data['start_block'],
+                         y=meal_data["carb_preds"],
                          marker={'color': 'green'},
                          name='Meal - Carbs (g)',
-
                          ),
-                  # secondary_y=True,
                   )
-    fig.write_image(plotname)
+    
+    # Convert the figure to an HTML string
+    fig_html = py.to_html(fig, full_html=True)
+
+    # Save the HTML string as an HTML file
+    with open(filename, 'w') as f:
+        f.write(fig_html)
+
 
 def generate_meal_diary_table(meal_data):
 
