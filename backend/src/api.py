@@ -2,9 +2,8 @@ from botocore.exceptions import ClientError
 
 from fastapi import FastAPI, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from .models import ProcessedDataResponse
-from src.ml_pipeline.helper_functions import preprocess_data, scale_data, plot_daily_predictions, timeseries_pred, generate_meal_diary_table
+from src.ml_pipeline.helper_functions import preprocess_data, scale_data, plot_daily_predictions, timeseries_pred, generate_meal_diary_table, timeseries_pred_plotly
 
 import numpy as np
 import pandas as pd
@@ -189,7 +188,10 @@ def upload_file_to_s3(bucket_name, file_name, file_data):
             # It's a path, so open the file
             with open(file_data, "rb") as f:
                 ### Todo - Need to write the logic to handle static images or plotly html which uses ExtraArgs={'ContentType': 'text/html'}
-                s3.upload_fileobj(f, bucket_name, file_name, ExtraArgs={'ContentType': 'image/png'})
+                if ".png" in file_name:
+                    s3.upload_fileobj(f, bucket_name, file_name, ExtraArgs={'ContentType': 'image/png'})
+                else:
+                    s3.upload_fileobj(f, bucket_name, file_name, ExtraArgs={'ContentType': 'text/html'})
         else:
             # It's a file-like object, so ensure we're at the start before uploading
             file_data.seek(0)
@@ -261,7 +263,7 @@ async def get_csv_file(file_name: str, age: int = Query(None)):
 
         predicted_meal_data = carb_prediction(filename=file_name, age=age).reset_index()
         df = generate_meal_diary_table(predicted_meal_data)
-        records = df.head(8).to_dict(orient="records")
+        records = df.head(12).to_dict(orient="records")
         
         predicted_meal_data.to_pickle(f"{file_name}_meal_data.pkl")
 
@@ -301,13 +303,13 @@ async def get_visualization(filename: str):
         plot_daily_predictions(predicted_meal_data, "carbPrediction.png")
 
         print("Loading prediction plot...")
-        timeseries_pred(df, predicted_meal_data, "predictionPlot.png")
+        timeseries_pred_plotly(df, predicted_meal_data, "predictionPlot.html")
 
         print("Uploading Carb Estimation Plot to S3 bucket...")
         upload_file_to_s3(bucket_name, f"{filename}_prediction_bar.png", "carbPrediction.png")
 
         print("Uploading Prediction Plot to S3 bucket...")
-        upload_file_to_s3(bucket_name, f"{filename}_prediction_line.png", "predictionPlot.png")
+        upload_file_to_s3(bucket_name, f"{filename}_prediction_line.html", "predictionPlot.html")
 
         print("Generating presigned URLs...")
         prediction_url_bar = s3.generate_presigned_url(
@@ -317,7 +319,7 @@ async def get_visualization(filename: str):
         )
         prediction_url_line = s3.generate_presigned_url(
             "get_object",
-            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction_line.png"},
+            Params={"Bucket": bucket_name, "Key": f"{filename}_prediction_line.html"},
             ExpiresIn=3600,
         )
 
