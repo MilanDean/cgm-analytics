@@ -18,7 +18,7 @@ export default function Example() {
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600">
               NutriNet leverages Machine Learning to transform personal glucose data into actionable insights, 
-              empowering individuals to manage and prevent diabetes.
+              empowering individuals to manage their Type 1 Diabetes.
             </p>
             <div className="mt-10 flex items-center gap-x-6">
             <Link href="/upload">
