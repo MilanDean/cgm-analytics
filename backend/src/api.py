@@ -210,7 +210,7 @@ def upload_file_to_s3(bucket_name, file_name, file_data):
 
 @app.get("/")
 async def root():
-    return {"Hello": "World"}
+    return {"Status": "Success"}
 
 
 @app.post("/api/analysis", response_model=ProcessedDataResponse)
