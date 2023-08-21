@@ -43,8 +43,8 @@ export default function Analysis(): JSX.Element {
 
   // Retrieving the filename stored at /upload local storage
   // Get the filename from local storage
-  let filename: string;
-  let age: string;
+  let filename: string = "";
+  let age: string = "";
   if (typeof window !== 'undefined') {
       filename = window.localStorage.getItem('uploadedFilename') || "";
       age = window.localStorage.getItem('userAge') || "";
@@ -112,8 +112,15 @@ export default function Analysis(): JSX.Element {
       <TopNav />
       {isLoading ? (
         <Spinner />
-      ) : error ? (
-        <div>An error occurred: {error.message}</div>
+      ) : (!filename || error) ? (
+        <div 
+          className="flex flex-col justify-start items-center min-h-screen w-full bg-no-repeat bg-cover bg-center"
+          style={{ backgroundImage: 'url(./green404.svg)', backgroundSize: '75% 75%', backgroundPosition: 'center 35%' }}
+        >
+          <div className="p-6 rounded-md text-center">
+            <h1 className="text-2xl text-green-500 mb-4">There was an error loading your uploaded data. Please try again!</h1>
+          </div>
+        </div>
       ) : (
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 sm:-mx-6 lg:-mx-8 justify-center items-center">
